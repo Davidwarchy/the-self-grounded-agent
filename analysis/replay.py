@@ -43,15 +43,15 @@ def animate_lidar_readings(data):
         distances = [float(d) for d in row[2:102]]  # Skip step and action, take ray_0 to ray_99
         line.set_ydata(distances)
         ax.set_title(f"LIDAR Readings at Step {step}")
+        # print(f"Frame {frame}: Step {step}")  # Debug output to confirm step changes
         return line,
     
-    ani = FuncAnimation(fig, update, frames=len(data), interval=100, blit=True)
+    ani = FuncAnimation(fig, update, frames=len(data), interval=50, blit=False)
     plt.show()
 
 if __name__ == "__main__":
-
     output_dir = "output/2025-10-18-175300"
-    n = 50
+    n = 5
 
     data = load_data(output_dir, n)
     if not data:
