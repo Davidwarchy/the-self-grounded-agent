@@ -1,0 +1,7 @@
+__pycache__/
+
+x*.*
+robot_path.npy
+outputs/
+output/
+profile.out
