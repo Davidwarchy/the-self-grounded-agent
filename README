@@ -1,0 +1,32 @@
+# Robot Exploration Environment
+
+A Gym-like environment for a robot navigating a 2D map with lidar sensors, focused on map exploration.
+
+## Setup
+1. Create a virtual environment (optional but recommended):
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   ```
+2. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+3. Run the environment:
+   ```bash
+   python robot_env.py
+   ```
+
+## Directory Structure
+- `robot_env.py`: Main file containing `RobotExplorationEnv` class.
+- `utils/`: Utility modules for lidar calculations and map/robot creation.
+- `output/`: Stores simulation data in timestamped directories.
+
+## Usage
+- Run `python robot_env.py` to simulate the robot with a random policy.
+- The environment generates data in `output/<timestamp>/` (paths, lidar, actions).
+- The environment provides:
+  - **Action space**: Discrete (0: forward, 1: back, 2: left, 3: right).
+  - **Observation space**: Array of lidar distances (100 rays).
+  - **Reward**: Number of new cells mapped.
+  - **Done**: Max steps (1M) reached or 99% map coverage achieved.
