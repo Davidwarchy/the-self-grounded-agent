@@ -49,6 +49,7 @@ class RobotExplorationEnv:
         self.csv_file_path = os.path.join(self.output_dir, "robot_log.csv")
         self.csv_file = open(self.csv_file_path, 'w', newline='')
         self.csv_writer = None
+        self.log_buffer = []  # store all rows for cumulative logging
         
         # Pygame screen
         self.screen = None
@@ -112,11 +113,23 @@ class RobotExplorationEnv:
         # Observation
         obs = self._get_observation(intersections)
 
-        # Save to CSV
+        # Save to main CSV
         lidar_distances = [sqrt((inter[0] - self.robot_x)**2 + (inter[1] - self.robot_y)**2) if inter else self.ray_length
-                           for inter in intersections]
+                        for inter in intersections]
         row = [self.current_step, action] + lidar_distances + [self.robot_x, self.robot_y]
         self.csv_writer.writerow(row)
+        self.log_buffer.append(row)  # store row in buffer
+
+        # --- Save cumulative intermediate results every 100 steps ---
+        if self.current_step % 100 == 0 and self.current_step != 0:
+            intermediate_path = os.path.join(self.output_dir, f"log_{self.current_step}.csv")
+            with open(intermediate_path, 'w', newline='') as f:
+                writer = csv.writer(f)
+                writer.writerow(['step', 'action'] + [f'ray_{i}' for i in range(self.num_rays)] + ['x', 'y'])
+                writer.writerows(self.log_buffer)
+
+            # <<< ADD THIS
+            self.log_buffer.clear()
 
         self.current_step += 1
         done = self.current_step >= self.max_steps or self._get_coverage() >= 99.0
