@@ -80,7 +80,7 @@ class RobotExplorationEnv:
                         self.grid[x, y] = 1
 
         # CSV setup
-        header = ['step', 'action'] + [f'ray_{i}' for i in range(self.num_rays)] + ['x', 'y']
+        header = ['step', 'action'] + [f'ray_{i}' for i in range(self.num_rays)] + ['x', 'y', 'orientation']
         self.csv_writer = csv.writer(self.csv_file)
         self.csv_writer.writerow(header)
 
@@ -116,7 +116,7 @@ class RobotExplorationEnv:
         # Save to main CSV
         lidar_distances = [sqrt((inter[0] - self.robot_x)**2 + (inter[1] - self.robot_y)**2) if inter else self.ray_length
                         for inter in intersections]
-        row = [self.current_step, action] + lidar_distances + [self.robot_x, self.robot_y]
+        row = [self.current_step, action] + lidar_distances + [self.robot_x, self.robot_y, self.robot_orientation]
         self.csv_writer.writerow(row)
         self.log_buffer.append(row)  # store row in buffer
 
@@ -125,7 +125,7 @@ class RobotExplorationEnv:
             intermediate_path = os.path.join(self.output_dir, f"log_{self.current_step}.csv")
             with open(intermediate_path, 'w', newline='') as f:
                 writer = csv.writer(f)
-                writer.writerow(['step', 'action'] + [f'ray_{i}' for i in range(self.num_rays)] + ['x', 'y'])
+                writer.writerow(['step', 'action'] + [f'ray_{i}' for i in range(self.num_rays)] + ['x', 'y', 'orientation'])
                 writer.writerows(self.log_buffer)
 
             # <<< ADD THIS

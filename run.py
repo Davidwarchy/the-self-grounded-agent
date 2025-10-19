@@ -3,7 +3,7 @@ import asyncio
 from robot_env import RobotExplorationEnv
 
 async def main():
-    env = RobotExplorationEnv(render=False)  # Set render=True to see visualization
+    env = RobotExplorationEnv(render=False, max_steps=int(1000e3))  # Set render=True to see visualization
     obs = env.reset()
     done = False
     while not done:
