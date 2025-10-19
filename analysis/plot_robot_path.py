@@ -22,7 +22,7 @@ def load_xy(output_dir, n):
 
     dfs = []
     for f in tqdm(log_files, desc="Reading CSVs", unit="file"):
-        dfs.append(pd.read_csv(f, usecols=["x","y"]))
+        dfs.append(pd.read_csv(f))
 
     df = pd.concat(dfs, ignore_index=True)
     df.to_parquet(parquet_path, index=False)
@@ -33,7 +33,7 @@ def load_xy(output_dir, n):
 
 if __name__ == "__main__":
     output_dir = "output/2025-10-18-175300"
-    n = 5000
+    n = 10000
 
     x, y = load_xy(output_dir, n)
 
