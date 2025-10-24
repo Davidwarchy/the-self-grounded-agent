@@ -11,6 +11,7 @@ from tqdm import tqdm
 from sklearn.decomposition import PCA
 from datetime import datetime
 import json
+from clustering import sample_clusters_and_inspect, plot_clusters_grid
 
 # Set device
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -18,30 +19,36 @@ print(f"Using device: {device}")
 
 
 class LidarDataset(Dataset):
-    """Dataset for LIDAR readings with spatial information"""
+    """Dataset returning anchor, positive, negative samples for contrastive learning"""
 
     def __init__(self, parquet_path, num_rays=100):
         self.df = pd.read_parquet(parquet_path)
         self.num_rays = num_rays
-
-        # Extract LIDAR columns
         self.ray_cols = [f'ray_{i}' for i in range(num_rays)]
-        self.lidar_data = self.df[self.ray_cols].values.astype(np.float32)
-
-        # Normalize LIDAR data
-        self.lidar_data = self.lidar_data / 200.0  # ray_length=200
-
+        self.lidar_data = self.df[self.ray_cols].values.astype(np.float32) / 200.0
         # Spatial coordinates
         self.x = self.df['x'].values
         self.y = self.df['y'].values
+        self.theta = self.df['orientation'].values
 
     def __len__(self):
-        return len(self.df)
+        # Last item has no next item, so length-1
+        return len(self.df) - 1
 
     def __getitem__(self, idx):
-        lidar = torch.from_numpy(self.lidar_data[idx])
-        x, y = self.x[idx], self.y[idx]
-        return lidar, x, y, idx
+        anchor = torch.from_numpy(self.lidar_data[idx])
+        positive = torch.from_numpy(self.lidar_data[idx + 1])
+
+        # Pick a random negative (not the next item)
+        neg_idx = idx
+        while neg_idx == idx or neg_idx == idx + 1:
+            neg_idx = np.random.randint(len(self.df))
+        negative = torch.from_numpy(self.lidar_data[neg_idx])
+
+        x, y, theta = self.x[idx], self.y[idx], self.theta[idx]
+
+        return anchor, positive, negative, x, y, theta
+
 
 
 class LidarEncoder(nn.Module):
@@ -71,43 +78,20 @@ class LidarEncoder(nn.Module):
 
 
 class ContrastiveLoss(nn.Module):
-    """Vectorized contrastive loss with temporal adjacency as similarity signal"""
+    """Contrastive loss for one positive and one negative per anchor"""
 
-    def __init__(self, margin=1.0, temporal_threshold=5):
+    def __init__(self, margin=1.0):
         super().__init__()
         self.margin = margin
-        self.temporal_threshold = temporal_threshold
 
-    def forward(self, embeddings, indices):
-        """
-        embeddings: [B, D]
-        indices: [B]
-        """
-        # ---- Compute pairwise distances ----
-        embed_dists = torch.cdist(embeddings, embeddings, p=2)  # [B,B]
-        
-        index_diffs = torch.abs(indices[:, None] - indices[None, :])  # [B,B]
+    def forward(self, anchor, positive, negative):
+        # anchor, positive, negative: [B, D]
+        pos_dist = F.pairwise_distance(anchor, positive, p=2)
+        neg_dist = F.pairwise_distance(anchor, negative, p=2)
 
-        # ---- Create masks ----
-        B = embeddings.size(0)
-        eye = torch.eye(B, dtype=torch.bool, device=embeddings.device)
+        loss = pos_dist + F.relu(self.margin - neg_dist)
+        return loss.mean()
 
-        positive_mask = (index_diffs < self.temporal_threshold) & (~eye)   # close in time
-        negative_mask = index_diffs >= self.temporal_threshold              # far in time
-
-        # ---- Positive loss: want embedding distance small ----
-        if positive_mask.any():
-            pos_loss = embed_dists[positive_mask].mean()
-        else:
-            pos_loss = torch.zeros((), device=embeddings.device)
-
-        # ---- Negative loss: want embedding distance > margin ----
-        if negative_mask.any():
-            neg_loss = torch.relu(self.margin - embed_dists[negative_mask]).mean()
-        else:
-            neg_loss = torch.zeros((), device=embeddings.device)
-
-        return pos_loss + neg_loss
 
 
 def create_output_directory():
@@ -189,15 +173,17 @@ def train_model(model, dataloader, criterion, optimizer, num_epochs=50):
     model.train()
     losses = []
 
-    for epoch in tqdm(range(num_epochs), desc="Epochs", unit="epoch"):
+    for epoch in tqdm(range(num_epochs), desc="Epochs"):
         running = 0.0
-        for i,(lidar_batch, x_batch, y_batch, idx_batch) in enumerate(dataloader):
-            lidar_batch = lidar_batch.to(device)
-            idx_batch = idx_batch.to(device)
+        for anchor, positive, negative, _, _, _ in dataloader:
+            anchor, positive, negative = anchor.to(device), positive.to(device), negative.to(device)
 
             optimizer.zero_grad()
-            emb = model(lidar_batch)
-            loss = criterion(emb, idx_batch)
+            anchor_emb = model(anchor)
+            positive_emb = model(positive)
+            negative_emb = model(negative)
+
+            loss = criterion(anchor_emb, positive_emb, negative_emb)
             loss.backward()
             optimizer.step()
 
@@ -218,11 +204,11 @@ def extract_embeddings(model, dataset):
     dataloader = DataLoader(dataset, batch_size=512, shuffle=False)
 
     with torch.no_grad():
-        for lidar_batch, _, _, _ in tqdm(dataloader, desc="Extracting embeddings",
-                                       unit="batch", total=len(dataloader)):
-            lidar_batch = lidar_batch.to(device)
-            embed_batch = model(lidar_batch)
+        for anchor, _, _, _, _, _ in tqdm(dataloader, desc="Extracting embeddings", unit="batch"):
+            anchor = anchor.to(device)
+            embed_batch = model(anchor)
             embeddings.append(embed_batch.cpu().numpy())
+
 
     return np.vstack(embeddings)
 
@@ -336,7 +322,7 @@ def main():
         "n": 5000,  # Number of log files to process
         "num_rays": 100,
         "batch_size": 256,
-        "num_epochs": 1000,
+        "num_epochs": 500,
         "learning_rate": 0.001,
         "hidden_dims": [256, 128],
         "embedding_dim": 64,
@@ -366,7 +352,6 @@ def main():
     # Loss and optimizer
     criterion = ContrastiveLoss(
         margin=config["margin"],
-        temporal_threshold=config["temporal_threshold"]
     )
     optimizer = torch.optim.Adam(model.parameters(), lr=config["learning_rate"])
 
@@ -394,8 +379,8 @@ def main():
     print("\nPlotting embeddings...")
     plot_embeddings(
         embeddings,
-        dataset.x,
-        dataset.y,
+        dataset.x[:-1],
+        dataset.y[:-1],
         save_path=os.path.join(output_dir, 'place_embeddings.png')
     )
 
@@ -424,6 +409,10 @@ def main():
     print(f"\n{'='*60}")
     print(f"All outputs saved to: {output_dir}")
     print(f"{'='*60}")
+
+    # plot clusters of embeddings and inspect LiDAR rays
+    results = sample_clusters_and_inspect(embeddings, dataset.lidar_data, k=20, n_samples_per=5)
+    plot_clusters_grid(results)
 
 
 if __name__ == "__main__":

@@ -32,7 +32,7 @@ def load_xy(output_dir, n):
 
 
 if __name__ == "__main__":
-    output_dir = "output/2025-10-18-175300"
+    output_dir = "output/2025-10-19-111452"
     n = 10000
 
     x, y = load_xy(output_dir, n)
