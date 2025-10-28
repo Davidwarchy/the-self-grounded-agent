@@ -33,7 +33,7 @@ class RobotExplorationEnv:
         self.dt = dt
         self.linear_speed = linear_speed
         self.angular_speed = angular_speed
-        self.robot_size = robot_size if robot_size else map_size / 10
+        self.robot_size = robot_size if robot_size else map_size / 20
         
         # State variables
         self.robot_x = None
@@ -55,8 +55,8 @@ class RobotExplorationEnv:
         self.screen = None
 
     def reset(self):
-        self.robot_x = 8
-        self.robot_y = 8
+        self.robot_x = 10
+        self.robot_y = 20
         self.robot_orientation = 45
         self.current_step = 0
 
@@ -132,7 +132,7 @@ class RobotExplorationEnv:
             self.log_buffer.clear()
 
         self.current_step += 1
-        done = self.current_step >= self.max_steps or self._get_coverage() >= 99.0
+        done = self.current_step >= self.max_steps
         info = {"new_cells": new_cells, "coverage": self._get_coverage(), "action": action}
         return obs, new_cells, done, info
 
