@@ -18,7 +18,7 @@ def sample_truncated_pareto(alpha, xm, xmax):
     return int(max(1, round(x)))
 
 async def main():
-    map_image_path = r"C:\Users\HP\Desktop\Projects\navigation\9-daniel-cremers-random-motion-collect\environments\images\1.png"
+    map_image_path = r"C:\Users\HP\Desktop\Projects\navigation\9-daniel-cremers-random-motion-collect\environments\images\3.png"
     
     env = RobotExplorationEnv(
         map_image_path=map_image_path,
@@ -43,7 +43,10 @@ async def main():
 
         # Step environment
         obs, reward, done, info = env.step(current_direction)
-        env.render()
+
+        # Render environment if needed
+        if env.render_flag:
+            env.render()
 
         # Update run counter
         current_run_length -= 1

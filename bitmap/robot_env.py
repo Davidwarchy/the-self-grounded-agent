@@ -5,6 +5,7 @@ import csv
 import cv2
 from datetime import datetime
 from math import cos, sin, radians, sqrt
+import json
 
 class RobotExplorationEnv:
     def __init__(self, map_image_path, grid_width=358, grid_height=358, scale=2, fps=10,
@@ -388,3 +389,10 @@ class RobotExplorationEnv:
         
         # Draw robot center
         pygame.draw.circle(self.screen, (255, 255, 0), (display_x, display_y), 3)
+
+    def save_metadata(self, metadata):
+        """Save environment and run metadata to JSON."""
+        metadata_path = os.path.join(self.output_dir, "metadata.json")
+        with open(metadata_path, 'w') as f:
+            json.dump(metadata, f, indent=4)
+        print(f"[INFO] Metadata saved to {metadata_path}")
