@@ -11,7 +11,7 @@ class RobotExplorationEnv:
     def __init__(self, map_image_path, grid_width=358, grid_height=358, scale=2, fps=10,
                  robot_radius=10, num_rays=100, ray_length=200, max_steps=int(1000e3),
                  wheel_base=4.0, wheel_radius=0.75, dt=0.2, linear_speed=4.0, angular_speed=1.0,
-                 output_dir=None, render=False):
+                 output_dir=None, render=False, strategy_name="unknown", strategy_parameters=None):
         
         # Load map image
         self.map_image_path = map_image_path
@@ -19,7 +19,6 @@ class RobotExplorationEnv:
         if self.map_image is None:
             raise ValueError(f"Could not load map image from {map_image_path}")
 
-        # print width/height
         print(f"Map image dimensions: {self.map_image.shape[1]}x{self.map_image.shape[0]} (width x height)")
         
         # Resize if necessary to match grid dimensions
@@ -62,9 +61,13 @@ class RobotExplorationEnv:
         # Exploration grid (-1=unexplored, 0=free, 1=obstacle)
         self.exploration_grid = None
         
+        # Strategy information
+        self.strategy_name = strategy_name
+        self.strategy_parameters = strategy_parameters or {}
+        
         # Output
         timestamp = datetime.now().strftime("%Y-%m-%d-%H%M%S")
-        self.output_dir = output_dir or os.path.join("output", timestamp)
+        self.output_dir = output_dir or os.path.join("output", f"{timestamp}_{strategy_name}")
         os.makedirs(self.output_dir, exist_ok=True)
         self.csv_file_path = os.path.join(self.output_dir, "robot_log.csv")
         self.csv_file = open(self.csv_file_path, 'w', newline='')
@@ -73,6 +76,33 @@ class RobotExplorationEnv:
         
         # Pygame screen
         self.screen = None
+        
+        # Save metadata immediately
+        self._save_metadata()
+
+    def _save_metadata(self):
+        """Save comprehensive run metadata before starting"""
+        metadata = {
+            "run_datetime": datetime.now().isoformat(),
+            "strategy_name": self.strategy_name,
+            "strategy_parameters": self.strategy_parameters,
+            "total_steps_scheduled": self.max_steps,
+            "environment_parameters": {
+                "grid_width": self.grid_width,
+                "grid_height": self.grid_height,
+                "robot_radius": self.robot_radius,
+                "num_rays": self.num_rays,
+                "ray_length": self.ray_length,
+                "max_steps": self.max_steps,
+                "map_image": os.path.basename(self.map_image_path)
+            },
+            "output_directory": self.output_dir
+        }
+        
+        metadata_path = os.path.join(self.output_dir, "metadata.json")
+        with open(metadata_path, 'w') as f:
+            json.dump(metadata, f, indent=4)
+        print(f"[INFO] Metadata saved to {metadata_path}")
 
     def reset(self):
         # Start robot in a free area (find first free pixel from center)
@@ -399,10 +429,3 @@ class RobotExplorationEnv:
         
         # Draw robot center
         pygame.draw.circle(self.screen, (255, 255, 0), (display_x, display_y), 3)
-
-    def save_metadata(self, metadata):
-        """Save environment and run metadata to JSON."""
-        metadata_path = os.path.join(self.output_dir, "metadata.json")
-        with open(metadata_path, 'w') as f:
-            json.dump(metadata, f, indent=4)
-        print(f"[INFO] Metadata saved to {metadata_path}")
