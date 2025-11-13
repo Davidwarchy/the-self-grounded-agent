@@ -147,8 +147,11 @@ class RobotExplorationEnv:
         lidar_distances = [sqrt((inter[0] - self.robot_x)**2 + (inter[1] - self.robot_y)**2) if inter else self.ray_length
                         for inter in intersections]
         row = [self.current_step, action] + lidar_distances + [self.robot_x, self.robot_y, self.robot_orientation]
-        self.csv_writer.writerow(row)
+        
+        # Keep only last 100 steps in buffer
         self.log_buffer.append(row)
+        if len(self.log_buffer) > 100:
+            self.log_buffer.pop(0)
 
         # Save intermediate results every 100 steps
         if self.current_step % 100 == 0 and self.current_step != 0:
@@ -157,7 +160,6 @@ class RobotExplorationEnv:
                 writer = csv.writer(f)
                 writer.writerow(['step', 'action'] + [f'ray_{i}' for i in range(self.num_rays)] + ['x', 'y', 'orientation'])
                 writer.writerows(self.log_buffer)
-            self.log_buffer.clear()
 
         self.current_step += 1
         done = self.current_step >= self.max_steps
@@ -184,11 +186,19 @@ class RobotExplorationEnv:
         self.clock.tick(self.fps)
 
     def close(self):
+        # Save final CSV with only last 100 steps in consistent format
+        if self.csv_file:
+            final_path = os.path.join(self.output_dir, f"log_{self.current_step}.csv")
+            with open(final_path, 'w', newline='') as f:
+                writer = csv.writer(f)
+                writer.writerow(['step', 'action'] + [f'ray_{i}' for i in range(self.num_rays)] + ['x', 'y', 'orientation'])
+                writer.writerows(self.log_buffer)
+            self.csv_file.close()
+            print(f"[INFO] Final log saved to {final_path}")
+        
         if self.screen:
             pygame.quit()
             self.screen = None
-        if self.csv_file:
-            self.csv_file.close()
 
     # Internal helper functions
     def _update_robot_position(self, x, y, orientation, v_left, v_right):

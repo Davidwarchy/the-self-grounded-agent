@@ -25,7 +25,7 @@ async def main():
         grid_width=358,
         grid_height=358,
         robot_radius=10,
-        render=True,
+        render=False,
         max_steps=int(1000e3)
     )
     
