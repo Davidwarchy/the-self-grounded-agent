@@ -8,7 +8,7 @@ from math import cos, sin, radians, sqrt
 import json
 
 class RobotExplorationEnv:
-    def __init__(self, map_image_path, grid_width=358, grid_height=358, scale=2, fps=10,
+    def __init__(self, map_image_path, grid_width=80, grid_height=80, scale=2, fps=10,
                  robot_radius=10, num_rays=100, ray_length=200, max_steps=int(1000e3),
                  wheel_base=4.0, wheel_radius=0.75, dt=0.2, linear_speed=4.0, angular_speed=1.0,
                  output_dir=None, render=False, strategy_name="unknown", strategy_parameters=None):

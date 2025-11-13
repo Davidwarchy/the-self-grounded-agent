@@ -318,7 +318,7 @@ def analyze_place_recognition(embeddings, x_coords, y_coords, distance_threshold
 def main():
     # Configuration
     config = {
-        "data_dir": ".",
+        "data_dir": "bitmap/output/2025-11-13-110326_random_walk",
         "n": 5000,  # Number of log files to process
         "num_rays": 100,
         "batch_size": 256,

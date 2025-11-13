@@ -9,7 +9,7 @@ from robot_env import RobotExplorationEnv
 
 def get_map_path():
     """Get the map image path - update this for your system"""
-    return r"C:\Users\HP\Desktop\Projects\navigation\9-daniel-cremers-random-motion-collect\environments\images\1.png"
+    return r"C:\Users\HP\Desktop\Projects\navigation\9-daniel-cremers-random-motion-collect\environments\images\4.png"
 
 def select_strategy():
     """Strategy selection menu"""
@@ -61,9 +61,9 @@ async def main():
         # Create environment with strategy metadata
         env = RobotExplorationEnv(
             map_image_path=get_map_path(),
-            grid_width=358,
-            grid_height=358,
-            robot_radius=10,
+            grid_width=80,
+            grid_height=80,
+            robot_radius=5,
             render=render,
             max_steps=max_steps,
             strategy_name=strategy.name,
