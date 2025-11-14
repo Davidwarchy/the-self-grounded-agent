@@ -72,7 +72,7 @@ def main():
     parser.add_argument(
         "--data_dir",
         type=str,
-        default="output/2025-11-13-110326_random_walk",
+        default="bitmap/output/2025-11-13-180740_manual_control",
         help="Folder that contains the log_*.csv files (and metadata.json).",
     )
     parser.add_argument(

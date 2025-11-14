@@ -8,35 +8,52 @@ from math import cos, sin, radians, sqrt
 import json
 
 class RobotExplorationEnv:
-    def __init__(self, map_image_path, grid_width=80, grid_height=80, scale=2, fps=10,
-                 robot_radius=10, num_rays=100, ray_length=200, max_steps=int(1000e3),
-                 wheel_base=4.0, wheel_radius=0.75, dt=0.2, linear_speed=4.0, angular_speed=1.0,
-                 output_dir=None, render=False, strategy_name="unknown", strategy_parameters=None):
-        
-        # Load map image
+    def __init__(self,
+                 map_image_path,
+                 # ← remove the fixed defaults
+                 grid_width=None, grid_height=None,
+                 scale=2, fps=10,
+                 robot_radius=10, num_rays=100, ray_length=200,
+                 max_steps=int(1000e3),
+                 wheel_base=4.0, wheel_radius=0.75, dt=0.2,
+                 linear_speed=15.0, angular_speed=1.0,
+                 output_dir=None, render=False,
+                 strategy_name="unknown", strategy_parameters=None):
+
+        # ------------------------------------------------------------------
+        # 1. Load the image **first**
+        # ------------------------------------------------------------------
         self.map_image_path = map_image_path
         self.map_image = cv2.imread(map_image_path, cv2.IMREAD_GRAYSCALE)
         if self.map_image is None:
             raise ValueError(f"Could not load map image from {map_image_path}")
 
-        print(f"Map image dimensions: {self.map_image.shape[1]}x{self.map_image.shape[0]} (width x height)")
-        
-        # Resize if necessary to match grid dimensions
-        if self.map_image.shape[1] != grid_width or self.map_image.shape[0] != grid_height:
-            self.map_image = cv2.resize(self.map_image, (grid_width, grid_height))
-        
-        self.map_height, self.map_width = self.map_image.shape
-        
-        # Convert to binary obstacle map (0=free, 1=obstacle)
-        _, self.obstacle_map = cv2.threshold(self.map_image, 127, 1, cv2.THRESH_BINARY_INV)
+        # ------------------------------------------------------------------
+        # 2. Derive grid size from the image (user can still override)
+        # ------------------------------------------------------------------
+        img_h, img_w = self.map_image.shape                     # height × width
+        self.grid_width  = grid_width  if grid_width  is not None else img_w
+        self.grid_height = grid_height if grid_height is not None else img_h
 
-        
-        # Environment parameters
-        self.grid_width = grid_width
-        self.grid_height = grid_height
+        # Resize **only if the caller forced a different size**
+        if self.map_image.shape[1] != self.grid_width or self.map_image.shape[0] != self.grid_height:
+            self.map_image = cv2.resize(self.map_image,
+                                        (self.grid_width, self.grid_height),
+                                        interpolation=cv2.INTER_NEAREST)
+
+        # ------------------------------------------------------------------
+        # 3. Build the binary obstacle map (0 = free, 1 = obstacle)
+        # ------------------------------------------------------------------
+        _, self.obstacle_map = cv2.threshold(self.map_image,
+                                             127, 1, cv2.THRESH_BINARY_INV)
+
+        # ------------------------------------------------------------------
+        # 4. The rest of the original init stays unchanged
+        # ------------------------------------------------------------------
+        self.map_height, self.map_width = self.map_image.shape   # now = grid size
         self.scale = scale
-        self.window_width = grid_width * scale
-        self.window_height = grid_height * scale
+        self.window_width  = self.grid_width  * scale
+        self.window_height = self.grid_height * scale
         self.fps = fps
         self.num_rays = num_rays
         self.ray_length = ray_length
@@ -156,11 +173,11 @@ class RobotExplorationEnv:
         elif action == 1:  # down
             v_left = v_right = -self.linear_speed
         elif action == 2:  # left
-            v_left = -self.linear_speed
-            v_right = self.linear_speed
+            v_left = -self.linear_speed / 4
+            v_right = self.linear_speed / 4
         else:  # right
-            v_left = self.linear_speed
-            v_right = -self.linear_speed
+            v_left = self.linear_speed / 4 
+            v_right = -self.linear_speed / 4 
 
         # Update robot position
         self.robot_x, self.robot_y, self.robot_orientation = self._update_robot_position(

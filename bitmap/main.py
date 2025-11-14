@@ -61,8 +61,6 @@ async def main():
         # Create environment with strategy metadata
         env = RobotExplorationEnv(
             map_image_path=get_map_path(),
-            grid_width=80,
-            grid_height=80,
             robot_radius=5,
             render=render,
             max_steps=max_steps,
