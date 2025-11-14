@@ -1,70 +1,99 @@
 # analysis/plotting.py
-# This script contains plotting functions
-
 import matplotlib.pyplot as plt
 import numpy as np
 from sklearn.cluster import KMeans
 import os
+import cv2
+import json
 from analysis.utils import compute_correlations
 
-# Map drawing helpers (from your code)
-def get_map_objects(size=10):
-    height = size
-    width = size * 2
-    radius = height / 10
-    return {
-        'walls': [
-            [(0, 0), (width, 0)], [(0, height), (width, height)],
-            [(0, 0), (0, height)], [(width, 0), (width, height)],
-            [(.6*height, 0), (height, height/2)],
-            [(1.1*height, 0), (height, height/2)],
-            [(1.8*height, height), (width, .8*height)],
-            [(.8*height, height), (.8*height, .9*height)],
-            [(1.2*height, height), (1.2*height, .9*height)],
-            [(.8*height, .9*height), (1.2*height, .9*height)],
-            [(.1*height, 0), (.1*height, .05*height)],
-            [(.1*height, .05*height), (.05*height, .1*height)],
-            [(0, .1*height), (.05*height, .1*height)],
-        ],
-        'circles': [
-            {'center': (radius*2, height - radius*2), 'radius': radius*1.3},
-            {'center': (width - radius*2, radius*2), 'radius': radius}
-        ]
-    }
+def find_map_image_path(data_dir):
+    """Find map image path from metadata.json or common locations"""
+    metadata_path = os.path.join(data_dir, "metadata.json")
+    if os.path.exists(metadata_path):
+        try:
+            with open(metadata_path, 'r') as f:
+                metadata = json.load(f)
+            map_image_name = metadata.get("environment_parameters", {}).get("map_image")
+            if map_image_name:
+                # Try common locations
+                possible_paths = [
+                    os.path.join(data_dir, map_image_name),
+                    os.path.join("environments", "images", map_image_name),
+                    os.path.join("..", "environments", "images", map_image_name),
+                    os.path.join(".", "environments", "images", map_image_name),
+                ]
+                for path in possible_paths:
+                    if os.path.exists(path):
+                        return path
+        except Exception as e:
+            print(f"[WARNING] Could not read metadata: {e}")
+    
+    print("[WARNING] Map image not found via metadata, trying default locations")
+    # Try to find any common map images
+    default_paths = [
+        os.path.join("environments", "images", "6.png"),
+        os.path.join("..", "environments", "images", "6.png"),
+        os.path.join(".", "environments", "images", "6.png"),
+    ]
+    for path in default_paths:
+        if os.path.exists(path):
+            return path
+    
+    return None
 
-def plot_map_overlay(ax, map_size=10):
-    objs = get_map_objects(size=map_size)
-    for wall in objs['walls']:
-        ax.plot([wall[0][0], wall[1][0]], [wall[0][1], wall[1][1]], 'k-', lw=2, alpha=0.6)
-    for c in objs['circles']:
-        ax.add_patch(plt.Circle(c['center'], c['radius'], fill=False, color='black', lw=2, alpha=0.6))
-
-def plot_embeddings_on_map(x, y, rgb, map_size=40, max_points=None, save_path=None):
-    """Plot embeddings overlaid on map."""
-    if max_points:
+def plot_embeddings_on_map(x, y, rgb, data_dir=None, map_image_path=None, max_points=None, save_path=None):
+    """Plot embeddings overlaid on actual map image."""
+    if max_points and len(x) > max_points:
         print(f"[INFO] Subsampling to {max_points} points for plotting... len={len(x)}")
         idxs = np.random.choice(len(x), min(max_points, len(x)), replace=False)
         x, y, rgb = x[idxs], y[idxs], rgb[idxs]
 
+    # Find map image path
+    if map_image_path is None and data_dir is not None:
+        map_image_path = find_map_image_path(data_dir)
+    
     fig, ax = plt.subplots(figsize=(12, 8))
-    plot_map_overlay(ax, map_size=map_size)
-    ax.scatter(x, y, c=rgb, s=30, alpha=0.8)
-    ax.axis('equal')
-    ax.set_xticks([])
-    ax.set_yticks([])
-    for spine in ax.spines.values():
-        spine.set_visible(False)
+    
+    # Add map image as background if found
+    if map_image_path and os.path.exists(map_image_path):
+        map_img = cv2.imread(map_image_path, cv2.IMREAD_GRAYSCALE)
+        if map_img is not None:
+            # Flip the image to have (0,0) at bottom-left
+            map_img = np.flipud(map_img)
+            ax.imshow(map_img, cmap='gray', 
+                     extent=[0, map_img.shape[1], 0, map_img.shape[0]], 
+                     alpha=0.7)
+            print(f"[INFO] Map overlay added: {map_image_path}")
+            
+            # Set axis limits to match image
+            ax.set_xlim(0, map_img.shape[1])
+            ax.set_ylim(0, map_img.shape[0])
+    
+    # Plot trajectory points
+    scatter = ax.scatter(x, y, c=rgb, s=30, alpha=0.8)
+    ax.set_xlabel("X (grid units)")
+    ax.set_ylabel("Y (grid units)")
+    ax.set_title("Embedding Distribution on Map (PCA RGB)")
+    ax.set_aspect("equal")
+    ax.grid(True, alpha=0.3)
+    
+    # Set axis to have (0,0) at bottom-left
+    ax.set_ylim(ax.get_ylim()[::-1])
+    
     plt.tight_layout()
 
     if save_path:
-        plt.savefig(save_path, format='pdf')
+        plt.savefig(save_path, format='pdf', dpi=300, bbox_inches="tight")
         print(f"[INFO] Saved to {save_path}")
     else:
         plt.show()
     plt.close(fig)
 
-def plot_oriented_embeddings(x, y, theta, rgb, target_orientation=0, tolerance=10, map_size=40, save_path=None):
-    """Plot embeddings filtered by orientation."""
+def plot_oriented_embeddings(x, y, theta, rgb, data_dir=None, map_image_path=None, 
+                           target_orientation=0, tolerance=10, save_path=None):
+    """Plot embeddings filtered by orientation with map overlay."""
+    # Filter by orientation
     diff = np.abs((theta - target_orientation + 180) % 360 - 180)
     mask = diff <= tolerance
     if mask.sum() == 0:
@@ -73,25 +102,43 @@ def plot_oriented_embeddings(x, y, theta, rgb, target_orientation=0, tolerance=1
 
     x_f, y_f, colors_f = x[mask], y[mask], rgb[mask]
 
+    # Find map image path
+    if map_image_path is None and data_dir is not None:
+        map_image_path = find_map_image_path(data_dir)
+    
     fig, ax = plt.subplots(figsize=(10, 6))
-    plot_map_overlay(ax, map_size=map_size)
+    
+    # Add map image as background if found
+    if map_image_path and os.path.exists(map_image_path):
+        map_img = cv2.imread(map_image_path, cv2.IMREAD_GRAYSCALE)
+        if map_img is not None:
+            map_img = np.flipud(map_img)
+            ax.imshow(map_img, cmap='gray', 
+                     extent=[0, map_img.shape[1], 0, map_img.shape[0]], 
+                     alpha=0.7)
+            ax.set_xlim(0, map_img.shape[1])
+            ax.set_ylim(0, map_img.shape[0])
+    
     ax.scatter(x_f, y_f, c=colors_f, s=15, alpha=0.8)
-    ax.axis('equal')
-    ax.set_xticks([])
-    ax.set_yticks([])
-    for spine in ax.spines.values():
-        spine.set_visible(False)
+    ax.set_xlabel("X (grid units)")
+    ax.set_ylabel("Y (grid units)")
+    ax.set_title(f"Embeddings (Orientation {target_orientation}° ± {tolerance}°)")
+    ax.set_aspect("equal")
+    ax.grid(True, alpha=0.3)
+    ax.set_ylim(ax.get_ylim()[::-1])
+    
     plt.tight_layout()
 
     if save_path:
-        plt.savefig(save_path, format='pdf')
+        plt.savefig(save_path, format='pdf', dpi=300, bbox_inches="tight")
         print(f"[INFO] Saved to {save_path}")
     else:
         plt.show()
     plt.close(fig)
 
-def plot_random_cluster(x, y, embeddings, n_clusters=50, arrow_scale=None, map_size=40, save_path=None):
-    """Plot spatial distribution of a random cluster, optionally with orientation arrows."""
+def plot_random_cluster(x, y, embeddings, data_dir=None, map_image_path=None, 
+                       n_clusters=50, save_path=None):
+    """Plot spatial distribution of a random cluster with map overlay."""
     kmeans = KMeans(n_clusters=n_clusters, random_state=42)
     labels = kmeans.fit_predict(embeddings)
     unique, counts = np.unique(labels, return_counts=True)
@@ -103,21 +150,39 @@ def plot_random_cluster(x, y, embeddings, n_clusters=50, arrow_scale=None, map_s
     chosen = np.random.choice(valid)
     mask = labels == chosen
 
+    # Find map image path
+    if map_image_path is None and data_dir is not None:
+        map_image_path = find_map_image_path(data_dir)
+    
     fig, ax = plt.subplots(figsize=(10, 8))
-    plot_map_overlay(ax, map_size=map_size)
-    ax.scatter(x, y, c='lightgray', s=10, alpha=0.5)
-    ax.scatter(x[mask], y[mask], c='red', s=30, alpha=0.9)
-
-    if arrow_scale is not None:
-        # Assuming theta is available; pass it if needed
-        pass  # Add quiver logic here if theta provided
-
-    ax.axis('equal')
+    
+    # Add map image as background if found
+    if map_image_path and os.path.exists(map_image_path):
+        map_img = cv2.imread(map_image_path, cv2.IMREAD_GRAYSCALE)
+        if map_img is not None:
+            map_img = np.flipud(map_img)
+            ax.imshow(map_img, cmap='gray', 
+                     extent=[0, map_img.shape[1], 0, map_img.shape[0]], 
+                     alpha=0.7)
+            ax.set_xlim(0, map_img.shape[1])
+            ax.set_ylim(0, map_img.shape[0])
+    
+    # Plot all points in light gray, cluster points in red
+    ax.scatter(x, y, c='lightgray', s=10, alpha=0.5, label="All positions")
+    ax.scatter(x[mask], y[mask], c='red', s=30, alpha=0.9, label=f"Cluster {chosen}")
+    
+    ax.set_xlabel("X (grid units)")
+    ax.set_ylabel("Y (grid units)")
+    ax.set_title(f"Spatial Distribution of Cluster {chosen}")
+    ax.set_aspect("equal")
     ax.legend()
+    ax.grid(True, alpha=0.3)
+    ax.set_ylim(ax.get_ylim()[::-1])
+    
     plt.tight_layout()
 
     if save_path:
-        plt.savefig(save_path, format='pdf')
+        plt.savefig(save_path, format='pdf', dpi=300, bbox_inches="tight")
         print(f"[INFO] Saved to {save_path}")
     else:
         plt.show()
@@ -154,7 +219,7 @@ def plot_correlations(features, rgb, save_path=None):
     plt.tight_layout()
 
     if save_path:
-        plt.savefig(save_path, format='pdf')
+        plt.savefig(save_path, format='pdf', dpi=300, bbox_inches="tight")
         print(f"[INFO] Saved to {save_path}")
     else:
         plt.show()
