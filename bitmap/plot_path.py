@@ -125,4 +125,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-    # python plot_path.py --data_dir "output/2025-11-14-104903_manual_control" --start_step 0 --end_step 300
+    # python plot_path.py --data_dir "output/2025-11-14-111702_random_walk" --start_step 0 --end_step 1000

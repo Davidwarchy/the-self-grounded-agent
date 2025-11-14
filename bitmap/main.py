@@ -1,95 +1,116 @@
+import argparse
 import asyncio
 import os
 import sys
+import time
 
-# Add the current directory to Python path to ensure imports work
+# Add the current directory to Python path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from robot_env import RobotExplorationEnv
 
+
 def get_map_path():
-    """Get the map image path - update this for your system"""
+    """Update this to your system path."""
     return r"C:\Users\HP\Desktop\Projects\navigation\9-daniel-cremers-random-motion-collect\environments\images\4.png"
 
-def select_strategy():
-    """Strategy selection menu"""
-    print("\n=== Robot Exploration Strategy Selection ===")
-    print("1. Random Walk")
-    print("2. Lévy Walk")
-    print("3. Manual Control")
-    print("4. Custom Lévy Walk")
-    
-    while True:
-        choice = input("\nSelect strategy (1-4): ").strip()
-        if choice == "1":
-            from strategies.random_walk import RandomWalkStrategy
-            return RandomWalkStrategy()
-        elif choice == "2":
-            from strategies.levy_walk import LevyWalkStrategy
-            return LevyWalkStrategy()
-        elif choice == "3":
-            from strategies.manual_control import ManualControlStrategy
-            return ManualControlStrategy()
-        elif choice == "4":
-            from strategies.levy_walk import LevyWalkStrategy
-            alpha = float(input("Enter alpha parameter (default 1.6): ") or "1.6")
-            min_step = float(input("Enter min step (default 1.0): ") or "1.0")
-            max_step = float(input("Enter max step (default 200.0): ") or "200.0")
-            return LevyWalkStrategy(alpha=alpha, min_step=min_step, max_step=max_step)
-        else:
-            print("Invalid choice. Please select 1-4.")
 
-def configure_environment():
-    """Environment configuration"""
-    print("\n=== Environment Configuration ===")
-    max_steps = input("Enter max steps (default 1000000): ").strip()
-    max_steps = int(max_steps) if max_steps else int(1000e3)
-    
-    render = input("Enable rendering? (y/n, default y): ").strip().lower()
-    render = render != 'n'
-    
-    return max_steps, render
+def load_strategy(name, alpha=None, min_step=None, max_step=None):
+    """Load strategy class based on name."""
+    if name == "random":
+        from strategies.random_walk import RandomWalkStrategy
+        return RandomWalkStrategy()
+
+    if name == "levy":
+        from strategies.levy_walk import LevyWalkStrategy
+        return LevyWalkStrategy(alpha=1.6, min_step=1.0, max_step=200.0)
+
+    if name == "levy_custom":
+        from strategies.levy_walk import LevyWalkStrategy
+        return LevyWalkStrategy(alpha=alpha, min_step=min_step, max_step=max_step)
+
+    if name == "manual":
+        from strategies.manual_control import ManualControlStrategy
+        return ManualControlStrategy()
+
+    raise ValueError(f"Unknown strategy: {name}")
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="Robot Exploration Runner")
+
+    parser.add_argument(
+        "--strategy",
+        type=str,
+        default="random",
+        choices=["random", "levy", "manual", "levy_custom"],
+        help="Exploration strategy"
+    )
+
+    parser.add_argument(
+        "--max_steps",
+        type=int,
+        default=1000,
+        help="Max number of steps to run (default 100)"
+    )
+
+    parser.add_argument(
+        "--render",
+        action="store_true",
+        help="Enable rendering"
+    )
+
+    # Custom Lévy walk parameters
+    parser.add_argument("--alpha", type=float, default=1.6)
+    parser.add_argument("--min_step", type=float, default=1.0)
+    parser.add_argument("--max_step_len", type=float, default=200.0)
+
+    return parser.parse_args()
+
 
 async def main():
-    try:
-        # Strategy selection
-        strategy = select_strategy()
-        
-        # Environment configuration
-        max_steps, render = configure_environment()
-        
-        # Create environment with strategy metadata
-        env = RobotExplorationEnv(
-            map_image_path=get_map_path(),
-            robot_radius=5,
-            render=render,
-            max_steps=max_steps,
-            strategy_name=strategy.name,
-            strategy_parameters=strategy.parameters
-        )
-        
-        print(f"\nStarting {strategy.name} strategy...")
-        print(f"Parameters: {strategy.parameters}")
-        print(f"Max steps: {max_steps}")
-        print(f"Output directory: {env.output_dir}")
-        
-        # Run the strategy
-        steps, coverage = await strategy.run(env)
-        
-        print(f"\n=== Simulation Complete ===")
-        print(f"Final Coverage: {coverage:.2f}%")
-        print(f"Total Steps: {steps}")
-        print(f"Results saved to: {env.output_dir}")
-        
-    except KeyboardInterrupt:
-        print("\nSimulation interrupted by user")
-    except Exception as e:
-        print(f"\nError during simulation: {e}")
-        import traceback
-        traceback.print_exc()
-    finally:
-        if 'env' in locals():
-            env.close()
+    args = parse_args()
+
+    strategy = load_strategy(
+        args.strategy,
+        alpha=args.alpha,
+        min_step=args.min_step,
+        max_step=args.max_step_len
+    )
+
+    env = RobotExplorationEnv(
+        map_image_path=get_map_path(),
+        robot_radius=5,
+        render=args.render,
+        max_steps=args.max_steps,
+        strategy_name=strategy.name,
+        strategy_parameters=strategy.parameters
+    )
+
+    print(f"\nRunning {strategy.name}...")
+    print(f"Parameters: {strategy.parameters}")
+    print(f"Max steps: {args.max_steps}")
+    print(f"Output dir: {env.output_dir}")
+
+    start_time = time.time()
+
+    # Run simulation
+    steps, coverage = await strategy.run(env)
+
+    elapsed = time.time() - start_time
+    time_per_100 = (elapsed / max(steps, 1)) * 100
+
+    print("\n=== Simulation Complete ===")
+    print(f"Coverage: {coverage:.2f}%")
+    print(f"Steps: {steps}")
+    print(f"Time: {elapsed:.3f}s total")
+    print(f"Time per 100 steps: {time_per_100:.4f}s")
+    print(f"Saved to: {env.output_dir}")
+
+    env.close()
+
 
 if __name__ == "__main__":
     asyncio.run(main())
+
+    # example command: python main.py --strategy random --max_steps 100_000 --env
