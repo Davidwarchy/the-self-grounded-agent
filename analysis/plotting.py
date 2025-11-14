@@ -36,7 +36,7 @@ def find_map_image_path(data_dir):
 
 def plot_cluster_lidars(embeddings, lidar_data, x=None, y=None, theta=None, 
                        n_clusters=20, n_samples_per_cluster=10, min_temporal_sep=100,
-                       save_path=None, show_map=False, data_dir=None, 
+                       save_path=None, show_plot=True, show_map=False, data_dir=None, 
                        max_points=5000, random_state=42):
     """
     Cluster embeddings and plot LiDAR readings for each cluster.
@@ -145,12 +145,14 @@ def plot_cluster_lidars(embeddings, lidar_data, x=None, y=None, theta=None,
     if save_path:
         plt.savefig(save_path, format='pdf', dpi=300, bbox_inches="tight")
         print(f"[INFO] Saved cluster LiDARs to {save_path}")
-    else:
+    
+    if show_plot:
         plt.show()
-    plt.close(fig)
+    else:
+        plt.close(fig)
 
 def plot_cluster_on_map(embeddings, x, y, theta=None, n_clusters=50, 
-                       arrow_scale=2, save_path=None, data_dir=None,
+                       arrow_scale=2, save_path=None, show_plot=True, data_dir=None,
                        max_points=5000, random_state=42):
     """
     Cluster embeddings and plot spatial distribution of a random cluster on map.
@@ -238,11 +240,13 @@ def plot_cluster_on_map(embeddings, x, y, theta=None, n_clusters=50,
     if save_path:
         plt.savefig(save_path, format='pdf', dpi=300, bbox_inches="tight")
         print(f"[INFO] Saved cluster map to {save_path}")
-    else:
+    
+    if show_plot:
         plt.show()
-    plt.close(fig)
+    else:
+        plt.close(fig)
 
-def plot_embeddings_rgb(embeddings, x, y, save_path=None, data_dir=None,
+def plot_embeddings_rgb(embeddings, x, y, save_path=None, show_plot=True, data_dir=None,
                        max_points=5000, random_state=42):
     """
     Plot embeddings in space using PCA-RGB coloring.
@@ -304,12 +308,14 @@ def plot_embeddings_rgb(embeddings, x, y, save_path=None, data_dir=None,
     if save_path:
         plt.savefig(save_path, format='pdf', dpi=300, bbox_inches="tight")
         print(f"[INFO] Saved RGB embeddings to {save_path}")
-    else:
+    
+    if show_plot:
         plt.show()
-    plt.close(fig)
+    else:
+        plt.close(fig)
 
 def plot_oriented_embeddings_rgb(embeddings, x, y, theta, target_orientation=0, 
-                                tolerance=10, save_path=None, data_dir=None,
+                                tolerance=10, save_path=None, show_plot=True, data_dir=None,
                                 max_points=5000, random_state=42):
     """
     Plot embeddings filtered by orientation using PCA-RGB coloring.
@@ -383,12 +389,14 @@ def plot_oriented_embeddings_rgb(embeddings, x, y, theta, target_orientation=0,
     if save_path:
         plt.savefig(save_path, format='pdf', dpi=300, bbox_inches="tight")
         print(f"[INFO] Saved oriented embeddings to {save_path}")
-    else:
+    
+    if show_plot:
         plt.show()
-    plt.close(fig)
+    else:
+        plt.close(fig)
 
 def plot_correlations(features, embeddings=None, rgb=None, use_pca=True,
-                     save_path=None, corr_type='pearson'):
+                     save_path=None, show_plot=True, corr_type='pearson'):
     """
     Plot correlations between features and embeddings (full or PCA-reduced).
     
@@ -488,14 +496,16 @@ def plot_correlations(features, embeddings=None, rgb=None, use_pca=True,
     if save_path:
         plt.savefig(save_path, format='pdf', dpi=300, bbox_inches="tight")
         print(f"[INFO] Saved correlations to {save_path}")
-    else:
+    
+    if show_plot:
         plt.show()
-    plt.close(fig)
+    else:
+        plt.close(fig)
 
 # Convenience function for full analysis pipeline
 def comprehensive_analysis(embeddings, x, y, theta, lidar_data, data_dir=None,
-                          save_dir="analysis_output", max_points=5000, 
-                          n_clusters=20, random_state=42):
+                          save_dir="analysis_output", show_plots=False,
+                          max_points=5000, n_clusters=20, random_state=42):
     """
     Run comprehensive analysis and generate all plots.
     
@@ -516,7 +526,7 @@ def comprehensive_analysis(embeddings, x, y, theta, lidar_data, data_dir=None,
         n_clusters=n_clusters, min_temporal_sep=100,
         save_path=os.path.join(save_dir, "1_cluster_lidars.pdf"),
         show_map=True, data_dir=data_dir, max_points=max_points,
-        random_state=random_state
+        random_state=random_state, show_plot=show_plots
     )
     
     # 2. Cluster spatial distribution with arrows
@@ -525,7 +535,7 @@ def comprehensive_analysis(embeddings, x, y, theta, lidar_data, data_dir=None,
         n_clusters=n_clusters, arrow_scale=2,
         save_path=os.path.join(save_dir, "2_cluster_spatial.pdf"),
         data_dir=data_dir, max_points=max_points,
-        random_state=random_state
+        random_state=random_state, show_plot=show_plots
     )
     
     # 3. Full embeddings RGB
@@ -533,7 +543,7 @@ def comprehensive_analysis(embeddings, x, y, theta, lidar_data, data_dir=None,
         embeddings, x, y,
         save_path=os.path.join(save_dir, "3_embeddings_rgb.pdf"),
         data_dir=data_dir, max_points=max_points,
-        random_state=random_state
+        random_state=random_state, show_plot=show_plots
     )
     
     # 4. Oriented embeddings RGB (example: facing 180°)
@@ -541,7 +551,7 @@ def comprehensive_analysis(embeddings, x, y, theta, lidar_data, data_dir=None,
         embeddings, x, y, theta, target_orientation=180, tolerance=10,
         save_path=os.path.join(save_dir, "4_oriented_180.pdf"),
         data_dir=data_dir, max_points=max_points,
-        random_state=random_state
+        random_state=random_state, show_plot=show_plots
     )
     
     # 5. Correlations with human-intuitive features
@@ -565,7 +575,7 @@ def comprehensive_analysis(embeddings, x, y, theta, lidar_data, data_dir=None,
     plot_correlations(
         features_dict, embeddings=embeddings_aligned,
         save_path=os.path.join(save_dir, "5_correlations.pdf"),
-        corr_type='pearson'
+        corr_type='pearson', show_plot=show_plots 
     )
     
     print(f"[INFO] Comprehensive analysis complete! Results saved to {save_dir}")
