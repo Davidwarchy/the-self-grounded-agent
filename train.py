@@ -11,7 +11,7 @@ from tqdm import tqdm
 from sklearn.decomposition import PCA
 from datetime import datetime
 import json
-from clustering import sample_clusters_and_inspect, plot_clusters_grid
+from train.clustering import sample_clusters_and_inspect, plot_clusters_grid
 
 # Set device
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
