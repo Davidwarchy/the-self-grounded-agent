@@ -175,5 +175,16 @@ def train(config):
     end_time = datetime.now()
     save_run_info(run_dir, config, len(train_ds), len(val_ds), split_idx,
                   best_val, start_time, end_time)
+    
+    # After training, load best model and save full final embeddings
+    print("[INFO] Saving final embeddings from best model...")
+    model.load_state_dict(torch.load(best_path))
+    model.eval()
+
+    full_ds = LidarDataset(parquet_path, config.num_rays)
+    final_embeddings = extract_embeddings(model, full_ds)
+    final_emb_path = os.path.join(run_dir, "final_embeddings.npy")
+    np.save(final_emb_path, final_embeddings)
+    print(f"[INFO] Final embeddings saved: {final_emb_path}")
 
     print(f"\nTraining complete! Results in: {run_dir}")

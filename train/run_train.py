@@ -2,9 +2,9 @@
 from train import TrainingConfig, train
 
 config = TrainingConfig(
-    data_dir="output/2025-11-14-111925_random_walk_100k",
-    n_files=1000,
-    num_epochs=100, 
+    data_dir="output/2025-11-14-213949_random_walk_10k",
+    n_files=100,
+    num_epochs=5, 
     vis_interval=1
 )
 train(config)
