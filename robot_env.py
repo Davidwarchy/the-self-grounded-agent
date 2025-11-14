@@ -1,3 +1,4 @@
+#### .\robot_env.py
 import numpy as np
 import pygame
 import os
@@ -87,9 +88,6 @@ class RobotExplorationEnv:
         timestamp = datetime.now().strftime("%Y-%m-%d-%H%M%S")
         self.output_dir = output_dir or os.path.join("output", f"{timestamp}_{strategy_name}")
         os.makedirs(self.output_dir, exist_ok=True)
-        self.csv_file_path = os.path.join(self.output_dir, "robot_log.csv")
-        self.csv_file = open(self.csv_file_path, 'w', newline='')
-        self.csv_writer = None
         self.log_buffer = []
         
         # Pygame screen
@@ -132,10 +130,8 @@ class RobotExplorationEnv:
         # Initialize exploration grid
         self.exploration_grid = np.full((self.grid_width, self.grid_height), -1, dtype=int) 
         
-        # Initialize CSV
-        header = ['step', 'action'] + [f'ray_{i}' for i in range(self.num_rays)] + ['x', 'y', 'orientation']
-        self.csv_writer = csv.writer(self.csv_file)
-        self.csv_writer.writerow(header)
+        # Initialize log buffer
+        self.log_buffer = []
 
         return self._get_observation()
 
@@ -196,18 +192,17 @@ class RobotExplorationEnv:
                         for inter in intersections]
         row = [self.current_step, action] + lidar_distances + [self.robot_x, self.robot_y, self.robot_orientation]
         
-        # Keep only last 100 steps in buffer
         self.log_buffer.append(row)
-        if len(self.log_buffer) > 100:
-            self.log_buffer.pop(0)
 
-        # Save intermediate results every 100 steps
-        if self.current_step % 100 == 0 and self.current_step != 0:
-            intermediate_path = os.path.join(self.output_dir, f"log_{self.current_step}.csv")
+        # Save when buffer reaches 100 steps
+        if len(self.log_buffer) == 100:
+            intermediate_path = os.path.join(self.output_dir, f"log_{self.current_step + 1}.csv")
+            header = ['step', 'action'] + [f'ray_{i}' for i in range(self.num_rays)] + ['x', 'y', 'orientation']
             with open(intermediate_path, 'w', newline='') as f:
                 writer = csv.writer(f)
-                writer.writerow(['step', 'action'] + [f'ray_{i}' for i in range(self.num_rays)] + ['x', 'y', 'orientation'])
+                writer.writerow(header)
                 writer.writerows(self.log_buffer)
+            self.log_buffer = []  # Clear buffer after saving
 
         self.current_step += 1
         done = self.current_step >= self.max_steps
@@ -234,15 +229,14 @@ class RobotExplorationEnv:
         self.clock.tick(self.fps)
 
     def close(self):
-        # Save final CSV with only last 100 steps in consistent format
-        if self.csv_file:
+        # Save any remaining steps in the buffer
+        if self.log_buffer:
             final_path = os.path.join(self.output_dir, f"log_{self.current_step}.csv")
+            header = ['step', 'action'] + [f'ray_{i}' for i in range(self.num_rays)] + ['x', 'y', 'orientation']
             with open(final_path, 'w', newline='') as f:
                 writer = csv.writer(f)
-                writer.writerow(['step', 'action'] + [f'ray_{i}' for i in range(self.num_rays)] + ['x', 'y', 'orientation'])
+                writer.writerow(header)
                 writer.writerows(self.log_buffer)
-            self.csv_file.close()
-            print(f"[INFO] Final log saved to {final_path}")
         
         if self.screen:
             pygame.quit()
