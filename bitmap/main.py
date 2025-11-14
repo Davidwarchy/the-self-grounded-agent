@@ -9,10 +9,12 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from robot_env import RobotExplorationEnv
 
+# Base path for environment images
+IMAGES_DIR = "environments/images"
 
-def get_map_path():
-    """Update this to your system path."""
-    return r"C:\Users\HP\Desktop\Projects\navigation\9-daniel-cremers-random-motion-collect\environments\images\4.png"
+def get_map_path(env_filename):
+    """Return full path to environment image."""
+    return os.path.join(IMAGES_DIR, env_filename)
 
 
 def load_strategy(name, alpha=None, min_step=None, max_step=None):
@@ -51,7 +53,7 @@ def parse_args():
         "--max_steps",
         type=int,
         default=1000,
-        help="Max number of steps to run (default 100)"
+        help="Max number of steps to run (default 1000)"
     )
 
     parser.add_argument(
@@ -64,6 +66,14 @@ def parse_args():
     parser.add_argument("--alpha", type=float, default=1.6)
     parser.add_argument("--min_step", type=float, default=1.0)
     parser.add_argument("--max_step_len", type=float, default=200.0)
+
+    # New argument: choose environment
+    parser.add_argument(
+        "--env",
+        type=str,
+        default="6.png",
+        help="Environment image filename (from environments/images)"
+    )
 
     return parser.parse_args()
 
@@ -79,7 +89,7 @@ async def main():
     )
 
     env = RobotExplorationEnv(
-        map_image_path=get_map_path(),
+        map_image_path=get_map_path(args.env),
         robot_radius=5,
         render=args.render,
         max_steps=args.max_steps,
@@ -87,7 +97,7 @@ async def main():
         strategy_parameters=strategy.parameters
     )
 
-    print(f"\nRunning {strategy.name}...")
+    print(f"\nRunning {strategy.name} on {args.env}...")
     print(f"Parameters: {strategy.parameters}")
     print(f"Max steps: {args.max_steps}")
     print(f"Output dir: {env.output_dir}")
