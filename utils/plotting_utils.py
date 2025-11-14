@@ -1,80 +1,62 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import cv2
 
-def get_map_objects(size=10):
-    height = size
-    width = size * 2
-    radius = height / 10
-    objects = {
-        'walls': [
-            [(0, 0), (width, 0)],
-            [(0, height), (width, height)],
-            [(0, 0), (0, height)],
-            [(width, 0), (width, height)],
-            [(.6*height, 0), (height, height / 2)],
-            [(1.1*height, 0), (height, height / 2)],
-            [(1.8*height, height), (width, .8*height)],
-            [(.8*height, height), (.8*height, .9*height)],
-            [(1.2*height, height), (1.2*height, .9*height)],
-            [(.8*height, .9*height), (1.2*height, .9*height)],
-            [(.1*height, 0), (.1*height, .05*height)],
-            [(.1*height, .05*height), (.05*height, .1*height)],
-            [(0, .1*height), (.05*height, .1*height)],
-        ],
-        'circles': [
-            {'center': (radius * 2, height - radius * 2), 'radius': radius*1.3},
-            {'center': (width - radius * 2, radius * 2), 'radius': radius}
-        ]
-    }
-    return objects
-
-def create_robot(x, y, orientation, size=1):
-    angle = orientation * (3.14159 / 180)
-    octagon = [
-        (x + size * 0.707 * np.cos(angle + i * 3.14159 / 4), y + size * 0.707 * np.sin(angle + i * 3.14159 / 4))
-        for i in range(8)
-    ]
-    octagon.append(octagon[0])
-    front_x = x + size * .626 * np.cos(angle)
-    front_y = y + size * .626 * np.sin(angle)
-    lidar = [(x, y), (front_x, front_y)]
-    return octagon, lidar
-
-def plot_environment(map_size=40, save_path=None):
-    """Plots the robot environment map with legible text."""
+def load_map_image(map_image_path, target_size=(358, 358)):
+    """Load and prepare map image for visualization"""
+    image = cv2.imread(map_image_path, cv2.IMREAD_GRAYSCALE)
+    if image is None:
+        raise ValueError(f"Could not load image from {map_image_path}")
     
-    room = get_map_objects(size=map_size)
-    width = map_size * 2
-    height = map_size
+    # Resize to target dimensions
+    image = cv2.resize(image, target_size)
+    return image
 
-    # Compact figure but high resolution
-    fig, ax = plt.subplots(figsize=(8, 4), dpi=300)
+def plot_image_environment(map_image_path, exploration_grid=None, robot_pos=None, save_path=None):
+    """Plot the image-based environment with optional exploration overlay"""
+    
+    map_image = load_map_image(map_image_path)
+    height, width = map_image.shape
+
+    fig, ax = plt.subplots(figsize=(10, 5), dpi=300)
     ax.set_aspect('equal')
     
-    # Draw walls
-    for wall in room['walls']:
-        (x0, y0), (x1, y1) = wall
-        ax.plot([x0, x1], [y0, y1], 'k-', linewidth=2)
+    # Display the base map
+    ax.imshow(map_image, cmap='gray', extent=[0, width, 0, height])
     
-    # Draw circles
-    for circle in room['circles']:
-        cx, cy = circle['center']
-        r = circle['radius']
-        ax.add_artist(plt.Circle((cx, cy), r, fill=False, color='b', linewidth=1.5))
+    # Overlay exploration data if provided
+    if exploration_grid is not None:
+        explored_free = np.ma.masked_where(exploration_grid != 0, exploration_grid >= 0)
+        explored_obstacle = np.ma.masked_where(exploration_grid != 1, exploration_grid >= 0)
+        
+        ax.imshow(explored_free, cmap='Greens', alpha=0.3, extent=[0, width, 0, height])
+        ax.imshow(explored_obstacle, cmap='Reds', alpha=0.3, extent=[0, width, 0, height])
     
-    # Limits and labels
+    # Plot robot position if provided
+    if robot_pos is not None:
+        x, y, orientation = robot_pos
+        ax.plot(x, y, 'bo', markersize=8, label='Robot')
+        # Draw orientation arrow
+        dx = 10 * np.cos(np.radians(orientation))
+        dy = 10 * np.sin(np.radians(orientation))
+        ax.arrow(x, y, dx, dy, head_width=3, head_length=2, fc='red', ec='red')
+    
     ax.set_xlim(0, width)
     ax.set_ylim(0, height)
-    ax.set_xlabel('X (units)', fontsize=10)
-    ax.set_ylabel('Y (units)', fontsize=10)
-    ax.set_title('Simulation Environment', fontsize=12)
+    ax.set_xlabel('X (pixels)')
+    ax.set_ylabel('Y (pixels)')
+    ax.set_title('Image-Based Simulation Environment')
     ax.grid(True, alpha=0.3)
-
+    
+    if robot_pos is not None:
+        ax.legend()
+    
     plt.tight_layout()
     if save_path:
         plt.savefig(save_path, dpi=300, bbox_inches='tight')
     plt.show()
 
-
 if __name__ == "__main__":
-    plot_environment(map_size=80)
+    # Example usage
+    map_path = r"C:\Users\HP\Desktop\Projects\navigation\9-daniel-cremers-random-motion-collect\environments\images\1.png"
+    plot_image_environment(map_path)
