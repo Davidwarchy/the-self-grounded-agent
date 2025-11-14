@@ -123,4 +123,4 @@ async def main():
 if __name__ == "__main__":
     asyncio.run(main())
 
-    # example command: python main.py --strategy random --max_steps 100_000 --env
+    # example command: python main.py --strategy random --max_steps 100 --env 6.png
