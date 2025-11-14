@@ -36,7 +36,7 @@ def plot_xy(data_dir: str, start_step: int, end_step: int):
     y = df_slice["y"].values
     steps = df_slice["step"].values
 
-    # 4. Plot
+    # 4. Plot with proper coordinate system (0,0 at bottom-left)
     fig, ax = plt.subplots(figsize=(8, 8), dpi=150)
     scatter = ax.scatter(x, y, c=steps, cmap="viridis", s=12, edgecolor="none", alpha=0.8)
     ax.plot(x, y, color="steelblue", linewidth=1.2, alpha=0.7, label="Path")
@@ -52,6 +52,9 @@ def plot_xy(data_dir: str, start_step: int, end_step: int):
     ax.set_aspect("equal", adjustable="datalim")
     ax.grid(True, alpha=0.3)
     ax.legend()
+
+    # Set axis to have (0,0) at bottom-left
+    ax.set_ylim(ax.get_ylim()[::-1])  # Invert y-axis
 
     cbar = fig.colorbar(scatter, ax=ax, shrink=0.8)
     cbar.set_label("Simulation step")
