@@ -74,6 +74,7 @@ class RobotExplorationEnv:
         self.robot_orientation = None
         self.current_step = 0
         self.clock = pygame.time.Clock()
+        self.lidar_angles = np.linspace(-45, 45, self.num_rays)
         
         # Exploration grid (-1=unexplored, 0=free, 1=obstacle)
         self.exploration_grid = None
@@ -129,7 +130,7 @@ class RobotExplorationEnv:
         self.current_step = 0
 
         # Initialize exploration grid
-        self.exploration_grid = np.full((self.grid_width, self.grid_height), -1, dtype=int)
+        self.exploration_grid = np.full((self.grid_width, self.grid_height), -1, dtype=int) 
         
         # Initialize CSV
         header = ['step', 'action'] + [f'ray_{i}' for i in range(self.num_rays)] + ['x', 'y', 'orientation']
@@ -267,7 +268,7 @@ class RobotExplorationEnv:
 
     def _draw_lidar(self):
         intersections = self.cast_lidar_rays_optimized(self.robot_x, self.robot_y, self.robot_orientation)
-        angles = np.linspace(self.robot_orientation - 45, self.robot_orientation + 45, self.num_rays)
+        angles = self.robot_orientation + self.lidar_angles
         
         for i, (inter, angle_deg) in enumerate(zip(intersections, angles)):
             angle_rad = np.radians(angle_deg)
@@ -296,7 +297,8 @@ class RobotExplorationEnv:
             max_range = self.ray_length
             
         intersections = []
-        angles = np.linspace(orientation - 45, orientation + 45, num_rays)
+        angles = self.robot_orientation + self.lidar_angles
+
         
         for angle_deg in angles:
             angle_rad = np.radians(angle_deg)
