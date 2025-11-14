@@ -1,13 +1,18 @@
-# train/analysis/spatial.py
+# train/spatial.py
 import numpy as np
 import matplotlib.pyplot as plt
-from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
+
 
 def plot_embedding_distribution(embeddings, x, y, save_path, map_size=40):
     pca = PCA(n_components=3, random_state=42)
     rgb = pca.fit_transform(embeddings)
-    rgb = (rgb - rgb.min(0)) / (rgb.ptp(0) + 1e-8)
+
+    # ---- FIX: use np.ptp() instead of .ptp() ----
+    rgb_min = rgb.min(axis=0)
+    rgb_ptp = np.ptp(rgb, axis=0)  # <--- this line changed
+    rgb = (rgb - rgb_min) / (rgb_ptp + 1e-8)
+    # -------------------------------------------
 
     fig, ax = plt.subplots(figsize=(10, 8))
     ax.scatter(x, y, c=rgb, s=10, alpha=0.8)
@@ -19,7 +24,9 @@ def plot_embedding_distribution(embeddings, x, y, save_path, map_size=40):
     plt.close()
     print(f"[INFO] Saved: {save_path}")
 
+
 def plot_cluster_spatial_distribution(embeddings, x, y, save_path, n_clusters=50):
+    from sklearn.cluster import KMeans
     kmeans = KMeans(n_clusters=n_clusters, n_init='auto', random_state=42)
     labels = kmeans.fit_predict(embeddings)
     counts = np.bincount(labels)

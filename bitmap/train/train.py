@@ -36,7 +36,7 @@ def validate(model, loader, criterion):
 
 def train(config):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    run_dir = create_output_dir()
+    run_dir = create_output_dir(base_dir=config.data_dir)
     start_time = datetime.now()
 
     # Data

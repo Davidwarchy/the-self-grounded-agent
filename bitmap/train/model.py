@@ -21,3 +21,8 @@ class LidarEncoder(nn.Module):
 
     def forward(self, x):
         return F.normalize(self.net(x), p=2, dim=1)
+
+    @property
+    def device(self):
+        """Return the device of the first parameter (or cpu if no params)."""
+        return next(self.parameters()).device
