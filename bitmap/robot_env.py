@@ -173,11 +173,11 @@ class RobotExplorationEnv:
         elif action == 1:  # down
             v_left = v_right = -self.linear_speed
         elif action == 2:  # left
-            v_left = -self.linear_speed / 4
-            v_right = self.linear_speed / 4
+            v_left = +self.linear_speed / 4 # negative because of image coordinates
+            v_right = -self.linear_speed / 4
         else:  # right
-            v_left = self.linear_speed / 4 
-            v_right = -self.linear_speed / 4 
+            v_left = -self.linear_speed / 4 # negative because of image coordinates 
+            v_right = +self.linear_speed / 4 
 
         # Update robot position
         self.robot_x, self.robot_y, self.robot_orientation = self._update_robot_position(
