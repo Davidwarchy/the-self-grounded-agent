@@ -12,7 +12,7 @@ class UniformRunLengthStrategy(BaseStrategy):
     """
     def __init__(self, min_step=1, max_step=200):
         params = {"min_step": int(min_step), "max_step": int(max_step)}
-        super().__init__("uniform_runlength", params)
+        super().__init__("uniform", params)
 
         self.min_step = int(min_step)
         self.max_step = int(max_step)
