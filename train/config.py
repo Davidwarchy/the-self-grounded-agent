@@ -5,7 +5,7 @@ from dataclasses import dataclass
 class TrainingConfig:
     # Data
     data_dir: str = "output"
-    n_files: int = 2207
+    n_files: int = 1000
     num_rays: int = 100
 
     # Model
