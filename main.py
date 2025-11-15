@@ -36,7 +36,7 @@ def load_strategy(name, alpha=None, min_step=None, max_step=None):
         return ManualControlStrategy()
     if name == "uniform":
         from strategies.uniform import UniformRunLengthStrategy
-        return UniformRunLengthStrategy()
+        return UniformRunLengthStrategy(min_step=1, max_step=10)
 
 
     raise ValueError(f"Unknown strategy: {name}")
