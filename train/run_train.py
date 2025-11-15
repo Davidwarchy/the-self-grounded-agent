@@ -79,3 +79,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+    # --------------------------------------------------------------
+    # python -m train.run_train --num_epochs 20 --vis_interval 1 --batch_size 64 --data_dir output/2025-11-14-213949_random_walk_10k
+    # --------------------------------------------------------------

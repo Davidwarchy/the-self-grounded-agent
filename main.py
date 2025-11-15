@@ -34,6 +34,10 @@ def load_strategy(name, alpha=None, min_step=None, max_step=None):
     if name == "manual":
         from strategies.manual_control import ManualControlStrategy
         return ManualControlStrategy()
+    if name == "uniform":
+        from strategies.uniform import UniformRunLengthStrategy
+        return UniformRunLengthStrategy()
+
 
     raise ValueError(f"Unknown strategy: {name}")
 
@@ -45,7 +49,7 @@ def parse_args():
         "--strategy",
         type=str,
         default="random",
-        choices=["random", "levy", "manual", "levy_custom"],
+        choices=["random", "levy", "manual", "levy_custom", "uniform"],
         help="Exploration strategy"
     )
 
