@@ -14,7 +14,7 @@ from train.loss import ContrastiveLoss
 from train.utils import create_output_dir, save_run_info
 from train.plotting import plot_train_val_loss
 from train.clustering import sample_clusters_and_inspect, plot_clusters_grid
-from train.spatial import plot_embedding_distribution
+from train.spatial import plot_embedding_distribution, plot_oriented_embedding_distribution
 
 
 def extract_embeddings(model, dataset, batch_size=512):
@@ -72,8 +72,14 @@ def train(config):
     # ------------------------------------------------------------------
     emb_map_dir = os.path.join(run_dir, "final_embedding_map")
     cluster_dir = os.path.join(run_dir, "clusters")
+    oriented_emb_dir = os.path.join(run_dir, "oriented_embeddings")
     os.makedirs(emb_map_dir, exist_ok=True)
     os.makedirs(cluster_dir, exist_ok=True)
+    os.makedirs(oriented_emb_dir, exist_ok=True)
+
+    # Define orientations to visualize (e.g., cardinal directions)
+    target_orientations = [0, 90, 180, 270]  # degrees
+    orientation_tolerance = 15  # ±15 degrees
 
     # ------------------------------------------------------------------
     # 3. Data
@@ -136,6 +142,21 @@ def train(config):
                 emb_path,
                 map_image_path=map_image_path
             )
+
+            # NEW: Save orientation-filtered embedding maps
+            for orientation in target_orientations:
+                oriented_path = os.path.join(
+                    oriented_emb_dir, 
+                    f"epoch_{epoch+1}_orient_{orientation}.png"
+                )
+                plot_oriented_embedding_distribution(
+                    val_emb, valid['x'], valid['y'], valid['theta'],
+                    oriented_path,
+                    target_orientation=orientation,
+                    tolerance=orientation_tolerance,
+                    map_image_path=map_image_path
+                )
+            
 
             # Save clustering grid
             cluster_results = sample_clusters_and_inspect(val_emb, valid['lidar'])
