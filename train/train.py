@@ -78,8 +78,15 @@ def train(config):
     os.makedirs(oriented_emb_dir, exist_ok=True)
 
     # Define orientations to visualize (e.g., cardinal directions)
-    target_orientations = [0, 90, 180, 270]  # degrees
-    orientation_tolerance = 15  # ±15 degrees
+    target_orientations = [0, 90, 180, 270]          # degrees
+    orientation_tolerance = 15                      # ±15 degrees
+
+    # **NEW**: create a sub-folder for *each* orientation
+    orientation_dirs = {}
+    for ori in target_orientations:
+        ori_dir = os.path.join(oriented_emb_dir, str(ori))
+        os.makedirs(ori_dir, exist_ok=True)
+        orientation_dirs[ori] = ori_dir
 
     # ------------------------------------------------------------------
     # 3. Data
@@ -143,11 +150,11 @@ def train(config):
                 map_image_path=map_image_path
             )
 
-            # NEW: Save orientation-filtered embedding maps
+            # Save orientation-filtered embedding maps into per-orientation folders
             for orientation in target_orientations:
                 oriented_path = os.path.join(
-                    oriented_emb_dir, 
-                    f"epoch_{epoch+1}_orient_{orientation}.png"
+                    orientation_dirs[orientation],               # <-- folder per orientation
+                    f"epoch_{epoch+1}.png"
                 )
                 plot_oriented_embedding_distribution(
                     val_emb, valid['x'], valid['y'], valid['theta'],
