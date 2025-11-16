@@ -7,6 +7,7 @@ import os
 import json
 from datetime import datetime
 import pandas as pd
+from sklearn.decomposition import PCA
 
 from train.dataset import LidarDataset, load_or_create_parquet
 from train.model import LidarEncoder
@@ -142,18 +143,32 @@ def train(config):
             np.save(os.path.join(run_dir, f"val_emb_epoch_{epoch+1}.npy"), val_emb)
             valid = val_ds.valid_slice
 
-            # Save embedding map with real image overlay
+            # --------------------------------------------------------------
+            # NEW: Fit PCA once on *all* validation embeddings
+            # --------------------------------------------------------------
+            pca_global = PCA(n_components=3, random_state=42)
+            rgb_3d = pca_global.fit_transform(val_emb)
+            rgb_min = rgb_3d.min(axis=0)
+            rgb_ptp = np.ptp(rgb_3d, axis=0) + 1e-8
+            rgb_global = (rgb_3d - rgb_min) / rgb_ptp
+
+            # --------------------------------------------------------------
+            # Global embedding map – use pre-computed colors
+            # --------------------------------------------------------------
             emb_path = os.path.join(emb_map_dir, f"epoch_{epoch+1}.png")
             plot_embedding_distribution(
                 val_emb, valid['x'], valid['y'],
                 emb_path,
-                map_image_path=map_image_path
+                map_image_path=map_image_path,
+                rgb_precomputed=rgb_global
             )
 
-            # Save orientation-filtered embedding maps into per-orientation folders
+            # --------------------------------------------------------------
+            # Orientation-filtered maps – reuse same PCA & normalization
+            # --------------------------------------------------------------
             for orientation in target_orientations:
                 oriented_path = os.path.join(
-                    orientation_dirs[orientation],               # <-- folder per orientation
+                    orientation_dirs[orientation],
                     f"epoch_{epoch+1}.png"
                 )
                 plot_oriented_embedding_distribution(
@@ -161,11 +176,15 @@ def train(config):
                     oriented_path,
                     target_orientation=orientation,
                     tolerance=orientation_tolerance,
-                    map_image_path=map_image_path
+                    map_image_path=map_image_path,
+                    pca_global=pca_global,
+                    rgb_min=rgb_min,
+                    rgb_ptp=rgb_ptp
                 )
-            
 
-            # Save clustering grid
+            # --------------------------------------------------------------
+            # Clustering grid
+            # --------------------------------------------------------------
             cluster_results = sample_clusters_and_inspect(val_emb, valid['lidar'])
             cluster_path = os.path.join(cluster_dir, f"epoch_{epoch+1}.png")
             plot_clusters_grid(cluster_results, save_path=cluster_path)
