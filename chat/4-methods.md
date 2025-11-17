@@ -23,3 +23,4 @@ The hypothesis was that if we trained a model with temporal continuity learning,
 
 It's interesting that a random model shows a clear spatial pattern of clustering even when it's not trained. This is interesting. 
 
+### Neigborhood Preservation 
