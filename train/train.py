@@ -38,6 +38,66 @@ def validate(model, loader, criterion):
             loss += criterion(model(a), model(p), model(n)).item()
     return loss / len(loader)
 
+def run_visualization(model, epoch, config, run_dir, map_image_path, val_ds):
+    """Generates and saves all embedding visualizations for a given epoch."""
+    
+    # 1. Setup paths and targets (redefining variables from train() for clarity)
+    emb_map_dir = os.path.join(run_dir, "final_embedding_map")
+    cluster_dir = os.path.join(run_dir, "clusters")
+    oriented_emb_dir = os.path.join(run_dir, "oriented_embeddings")
+    target_orientations = [0, 90, 180, 270]          
+    orientation_tolerance = 15
+    orientation_dirs = {ori: os.path.join(oriented_emb_dir, str(ori)) for ori in target_orientations}
+    for ori_dir in orientation_dirs.values():
+        os.makedirs(ori_dir, exist_ok=True)
+
+    # 2. Extract embeddings
+    model.eval()
+    val_emb = extract_embeddings(model, val_ds)
+    # Save embeddings for this epoch (useful for later analysis)
+    np.save(os.path.join(run_dir, f"val_emb_epoch_{epoch}.npy"), val_emb)
+    valid = val_ds.valid_slice
+
+    # 3. Fit PCA once on *all* validation embeddings (for consistent coloring)
+    pca_global = PCA(n_components=3, random_state=42)
+    rgb_3d = pca_global.fit_transform(val_emb)
+    rgb_min = rgb_3d.min(axis=0)
+    rgb_ptp = np.ptp(rgb_3d, axis=0) + 1e-8
+    rgb_global = (rgb_3d - rgb_min) / rgb_ptp
+
+    # 4. Global embedding map – use pre-computed colors
+    emb_path = os.path.join(emb_map_dir, f"epoch_{epoch}.png")
+    plot_embedding_distribution(
+        val_emb, valid['x'], valid['y'],
+        emb_path,
+        map_image_path=map_image_path,
+        rgb_precomputed=rgb_global
+    )
+
+    # 5. Orientation-filtered maps – reuse same PCA & normalization
+    for orientation in target_orientations:
+        oriented_path = os.path.join(
+            orientation_dirs[orientation],
+            f"epoch_{epoch}.png"
+        )
+        plot_oriented_embedding_distribution(
+            val_emb, valid['x'], valid['y'], valid['theta'],
+            oriented_path,
+            target_orientation=orientation,
+            tolerance=orientation_tolerance,
+            map_image_path=map_image_path,
+            pca_global=pca_global,
+            rgb_min=rgb_min,
+            rgb_ptp=rgb_ptp
+        )
+
+    # 6. Clustering grid
+    cluster_results = sample_clusters_and_inspect(val_emb, valid['lidar'])
+    cluster_path = os.path.join(cluster_dir, f"epoch_{epoch}.png")
+    plot_clusters_grid(cluster_results, save_path=cluster_path)
+
+    print(f"[INFO] Epoch {epoch} Visualization Complete. Plots saved to {emb_map_dir} and related folders.")
+
 
 def train(config):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -115,6 +175,9 @@ def train(config):
     train_losses, val_losses = [], []
     best_path = os.path.join(run_dir, "best_model.pth")
 
+    run_visualization(epoch=-1, model=model, config=config, run_dir=run_dir,
+                      map_image_path=map_image_path, val_ds=val_ds)
+
     for epoch in tqdm(range(config.num_epochs), desc="Training"):
         model.train()
         epoch_loss = 0.0
@@ -139,58 +202,11 @@ def train(config):
         # 6. Periodic visualization (every vis_interval or last epoch)
         # --------------------------------------------------------------
         if (epoch + 1) % config.vis_interval == 0 or epoch == config.num_epochs - 1:
-            val_emb = extract_embeddings(model, val_ds)
-            np.save(os.path.join(run_dir, f"val_emb_epoch_{epoch+1}.npy"), val_emb)
-            valid = val_ds.valid_slice
-
-            # --------------------------------------------------------------
-            # NEW: Fit PCA once on *all* validation embeddings
-            # --------------------------------------------------------------
-            pca_global = PCA(n_components=3, random_state=42)
-            rgb_3d = pca_global.fit_transform(val_emb)
-            rgb_min = rgb_3d.min(axis=0)
-            rgb_ptp = np.ptp(rgb_3d, axis=0) + 1e-8
-            rgb_global = (rgb_3d - rgb_min) / rgb_ptp
-
-            # --------------------------------------------------------------
-            # Global embedding map – use pre-computed colors
-            # --------------------------------------------------------------
-            emb_path = os.path.join(emb_map_dir, f"epoch_{epoch+1}.png")
-            plot_embedding_distribution(
-                val_emb, valid['x'], valid['y'],
-                emb_path,
-                map_image_path=map_image_path,
-                rgb_precomputed=rgb_global
+            run_visualization(
+                model, epoch + 1, config, run_dir,
+                map_image_path, val_ds
             )
-
-            # --------------------------------------------------------------
-            # Orientation-filtered maps – reuse same PCA & normalization
-            # --------------------------------------------------------------
-            for orientation in target_orientations:
-                oriented_path = os.path.join(
-                    orientation_dirs[orientation],
-                    f"epoch_{epoch+1}.png"
-                )
-                plot_oriented_embedding_distribution(
-                    val_emb, valid['x'], valid['y'], valid['theta'],
-                    oriented_path,
-                    target_orientation=orientation,
-                    tolerance=orientation_tolerance,
-                    map_image_path=map_image_path,
-                    pca_global=pca_global,
-                    rgb_min=rgb_min,
-                    rgb_ptp=rgb_ptp
-                )
-
-            # --------------------------------------------------------------
-            # Clustering grid
-            # --------------------------------------------------------------
-            cluster_results = sample_clusters_and_inspect(val_emb, valid['lidar'])
-            cluster_path = os.path.join(cluster_dir, f"epoch_{epoch+1}.png")
-            plot_clusters_grid(cluster_results, save_path=cluster_path)
-
-            print(f"[INFO] Epoch {epoch+1} → saved to {emb_map_dir}, {cluster_dir}")
-
+        
     # ------------------------------------------------------------------
     # 7. Final saves (symlinks for backward compatibility)
     # ------------------------------------------------------------------

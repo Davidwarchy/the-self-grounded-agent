@@ -9,3 +9,17 @@
 - Option to save as pdf 
 - Option to sample the embeddings in case they are many 
 - Option to show arrows (including scale of arrow) 
+
+We aimed to test whether we could have something similar to a shape detector, a proxy for objecthood detection. 
+
+We set up an environment with different shapes: triangles, circles, semicircular grooves, etc. 
+
+The hypothesis was that if we trained a model with temporal continuity learning, then we will have a model that is capable of distinguishing the shapes. How this is done is by: 
+- training th
+
+## Results 
+
+![alt text](image.png)
+
+It's interesting that a random model shows a clear spatial pattern of clustering even when it's not trained. This is interesting. 
+
