@@ -85,6 +85,9 @@ def parse_args():
 async def main():
     args = parse_args()
 
+    if args.strategy == "manual":
+        args.render = True
+
     strategy = load_strategy(
         args.strategy,
         alpha=args.alpha,
@@ -94,7 +97,7 @@ async def main():
 
     env = RobotExplorationEnv(
         map_image_path=get_map_path(args.env),
-        robot_radius=5,
+        robot_radius=2,
         render=args.render,
         max_steps=args.max_steps,
         strategy_name=strategy.name,

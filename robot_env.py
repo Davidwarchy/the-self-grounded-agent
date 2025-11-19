@@ -14,7 +14,7 @@ class RobotExplorationEnv:
                  # ← remove the fixed defaults
                  grid_width=None, grid_height=None,
                  scale=2, fps=10,
-                 robot_radius=10, num_rays=100, ray_length=200,
+                 robot_radius=5, num_rays=100, ray_length=200,
                  max_steps=int(1000e3),
                  wheel_base=4.0, wheel_radius=0.75, dt=0.2,
                  linear_speed=15.0, angular_speed=1.0,
