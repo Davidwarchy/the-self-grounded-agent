@@ -54,3 +54,5 @@ Make code as simple as possible
 ![alt text](image-1.png)
 
 It's true: Lidar does have structure even before any training takes place... this is interesting. 
+
+This is an interesting result.
