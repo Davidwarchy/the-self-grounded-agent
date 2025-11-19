@@ -6,7 +6,7 @@ from sklearn.decomposition import PCA
 import os
 import cv2
 import json
-from analysis.utils import compute_correlations
+from .utils import compute_correlations
 import math
 from scipy.stats import pearsonr, spearmanr
 

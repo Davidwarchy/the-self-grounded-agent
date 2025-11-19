@@ -24,3 +24,33 @@ The hypothesis was that if we trained a model with temporal continuity learning,
 It's interesting that a random model shows a clear spatial pattern of clustering even when it's not trained. This is interesting. 
 
 ### Neigborhood Preservation 
+
+## Test: Randomly Initialized Network has Structure 
+### Setup 
+We want to test a theory here: 
+
+That randomly initialized networks will produce structure output for our lidar enabled differential drive even without training. 
+
+Here's what we do. 
+
+- Read lidar readings 
+- Pass them through a neural net to give embeddings 
+- Convert embeddings to RGB 
+- Show RGB embeddings in their locations
+- Show RGB embeddings in their locations for a given orientation 
+
+do this in analysis folder
+
+we already have the functions for almost everything 
+- gettingn the embedding dimension from metadata 
+- getting environment name from meta 
+- showing all colored rgb embeddings 
+- showing all colored rgb embeddings (oriented)
+
+Make code as simple as possible 
+
+### Results 
+
+![alt text](image-1.png)
+
+It's true: Lidar does have structure even before any training takes place... this is interesting. 
