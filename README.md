@@ -2,6 +2,10 @@
 
 A lightweight Gym-style setup for 2D robot navigation and exploration using lidar.
 
+![alt text](media/self-grounded-agent.gif)
+
+Figure interpretation. Black - obstacles. White - free space. Green - explored regions. Yellow - lidar rays. Maroon - detected obstacles. 
+
 ## Environments
 
 Maps are stored as bitmap images in `environments/`.
