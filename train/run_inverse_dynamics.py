@@ -6,12 +6,17 @@ Author: David Warutumo
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset, DataLoader, random_split
 import pandas as pd
 import numpy as np
 from tqdm import tqdm
 import os
+import sys
 import datetime
+
+# --- PATH FIX: Allow running this script directly ---
+# This adds the project root (one level up) to the python path
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 # Reuse your existing parquet loader
 from train.dataset import load_or_create_parquet
@@ -85,81 +90,133 @@ def train_inverse_model():
     BATCH_SIZE = 64
     LR = 0.001
     EPOCHS = 50
+    VAL_SPLIT = 0.2  # 20% for validation
     
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"[INFO] Training on {device}")
 
-    # --- Data ---
-    parquet_path = load_or_create_parquet(DATA_DIR, N_FILES)
-    dataset = ActionDataset(parquet_path)
-    loader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True)
+    # --- Data Loading & Splitting ---
+    try:
+        parquet_path = load_or_create_parquet(DATA_DIR, N_FILES)
+        full_dataset = ActionDataset(parquet_path)
+        
+        # Calculate split sizes
+        val_size = int(len(full_dataset) * VAL_SPLIT)
+        train_size = len(full_dataset) - val_size
+        
+        # Random split
+        train_dataset, val_dataset = random_split(full_dataset, [train_size, val_size])
+        
+        print(f"[INFO] Dataset size: {len(full_dataset)}")
+        print(f"[INFO] Training samples: {len(train_dataset)} | Validation samples: {len(val_dataset)}")
+        
+        train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
+        val_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=False)
+        
+    except Exception as e:
+        print(f"[ERROR] Could not load data: {e}")
+        print(f"Ensure you are running from the project root or that '{DATA_DIR}' exists.")
+        return
 
-    # --- Model ---
+    # --- Model Setup ---
     model = ActionPredictor(num_classes=4).to(device)
     optimizer = optim.Adam(model.parameters(), lr=LR)
-    
-    # Changed to CrossEntropyLoss because we are predicting classes 0-3
     criterion = nn.CrossEntropyLoss() 
 
-    # --- Loop ---
+    # Output directory setup
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d-%H%M%S")
+    output_dir = f"output/inverse_dynamics_model/{timestamp}"
+    os.makedirs(output_dir, exist_ok=True)
+    best_model_path = os.path.join(output_dir, "inverse_model_best.pth")
+
+    best_val_acc = 0.0
+
+    # --- Training Loop ---
     for epoch in range(EPOCHS):
+        # 1. TRAIN
         model.train()
-        total_loss = 0
-        correct = 0
-        total = 0
+        train_loss = 0
+        train_correct = 0
+        train_total = 0
         
-        for s_t, s_t1, target_action in tqdm(loader, desc=f"Epoch {epoch+1}/{EPOCHS}"):
+        for s_t, s_t1, target_action in tqdm(train_loader, desc=f"Epoch {epoch+1}/{EPOCHS} [Train]", leave=False):
             s_t, s_t1, target_action = s_t.to(device), s_t1.to(device), target_action.to(device)
             
-            # Forward (outputs logits)
+            # Forward
             logits = model(s_t, s_t1)
             
             # Loss
             loss = criterion(logits, target_action)
-            
-            # Calculate accuracy
-            _, predicted = torch.max(logits.data, 1)
-            total += target_action.size(0)
-            correct += (predicted == target_action).sum().item()
             
             # Backward
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
             
-            total_loss += loss.item()
-            
-        avg_loss = total_loss / len(loader)
-        accuracy = 100 * correct / total
-        print(f"Epoch {epoch+1} | Loss: {avg_loss:.6f} | Acc: {accuracy:.2f}%")
+            # Stats
+            train_loss += loss.item()
+            _, predicted = torch.max(logits.data, 1)
+            train_total += target_action.size(0)
+            train_correct += (predicted == target_action).sum().item()
 
-    # --- Save ---
-    timestamp = datetime.datetime.now().strftime("%Y-%m-%d-%H%M%S")  # YYYY-MM-DD-HHMMSS 
-    output_dir = f"output/inverse_dynamics_model/{timestamp}"
-    os.makedirs(output_dir, exist_ok=True)
-    torch.save(model.state_dict(), os.path.join(output_dir, "inverse_model.pth"))
-    print(f"[INFO] Model saved to {os.path.join(output_dir, 'inverse_model.pth')}")
+        avg_train_loss = train_loss / len(train_loader)
+        train_acc = 100 * train_correct / train_total
 
-    # --- Simple Test ---
-    print("\n[TESTING] Checking a few predictions...")
+        # 2. VALIDATE
+        model.eval()
+        val_loss = 0
+        val_correct = 0
+        val_total = 0
+        
+        with torch.no_grad():
+            for s_t, s_t1, target_action in val_loader:
+                s_t, s_t1, target_action = s_t.to(device), s_t1.to(device), target_action.to(device)
+                
+                logits = model(s_t, s_t1)
+                loss = criterion(logits, target_action)
+                
+                val_loss += loss.item()
+                _, predicted = torch.max(logits.data, 1)
+                val_total += target_action.size(0)
+                val_correct += (predicted == target_action).sum().item()
+        
+        avg_val_loss = val_loss / len(val_loader)
+        val_acc = 100 * val_correct / val_total
+
+        # 3. LOG & SAVE
+        print(f"Epoch {epoch+1:02d} | "
+              f"Train Loss: {avg_train_loss:.4f} Acc: {train_acc:.2f}% | "
+              f"Val Loss: {avg_val_loss:.4f} Acc: {val_acc:.2f}%")
+
+        if val_acc > best_val_acc:
+            best_val_acc = val_acc
+            torch.save(model.state_dict(), best_model_path)
+            print(f"    >>> New Best Validation Accuracy! Saved to {best_model_path}")
+
+    print(f"\n[INFO] Training Complete. Best Validation Accuracy: {best_val_acc:.2f}%")
+
+    # --- Simple Test on Validation Set ---
+    print("\n[TESTING] Checking predictions on Validation Set...")
+    model.load_state_dict(torch.load(best_model_path))
     model.eval()
     action_map = {0: 'Up', 1: 'Down', 2: 'Left', 3: 'Right'}
     
     with torch.no_grad():
-        # Test on 5 random samples
-        indices = np.random.choice(len(dataset), 5)
-        for idx in indices:
-            s_t, s_t1, real_a = dataset[idx]
-            s_t, s_t1 = s_t.unsqueeze(0).to(device), s_t1.unsqueeze(0).to(device)
-            
-            logits = model(s_t, s_t1)
-            pred_a = torch.argmax(logits, dim=1).item()
-            
-            real_label = action_map.get(real_a.item(), str(real_a.item()))
-            pred_label = action_map.get(pred_a, str(pred_a))
-            
-            print(f"Idx {idx} | Real: {real_label:<5} | Pred: {pred_label:<5} | {'CORRECT' if real_a.item() == pred_a else 'WRONG'}")
+        # Create an iterator to grab a batch
+        val_iter = iter(val_loader)
+        s_t, s_t1, real_a = next(val_iter)
+        
+        # Take first 5 samples from the batch
+        s_t, s_t1, real_a = s_t[:5].to(device), s_t1[:5].to(device), real_a[:5].to(device)
+        
+        logits = model(s_t, s_t1)
+        predictions = torch.argmax(logits, dim=1)
+        
+        for i in range(5):
+            real_label = action_map.get(real_a[i].item(), str(real_a[i].item()))
+            pred_label = action_map.get(predictions[i].item(), str(predictions[i].item()))
+            is_correct = 'CORRECT' if real_a[i] == predictions[i] else 'WRONG'
+            print(f"Sample {i+1} | Real: {real_label:<5} | Pred: {pred_label:<5} | {is_correct}")
 
 if __name__ == "__main__":
     train_inverse_model()
-    # python -m train.run_inverse_dynamics
