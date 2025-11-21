@@ -11,6 +11,7 @@ import pandas as pd
 import numpy as np
 from tqdm import tqdm
 import os
+import datetime
 
 # Reuse your existing parquet loader
 from train.dataset import load_or_create_parquet
@@ -83,7 +84,7 @@ def train_inverse_model():
     N_FILES = 1000
     BATCH_SIZE = 64
     LR = 0.001
-    EPOCHS = 10
+    EPOCHS = 50
     
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"[INFO] Training on {device}")
@@ -133,8 +134,11 @@ def train_inverse_model():
         print(f"Epoch {epoch+1} | Loss: {avg_loss:.6f} | Acc: {accuracy:.2f}%")
 
     # --- Save ---
-    torch.save(model.state_dict(), "inverse_model.pth")
-    print("[INFO] Model saved to inverse_model.pth")
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d-%H%M%S")  # YYYY-MM-DD-HHMMSS 
+    output_dir = f"output/inverse_dynamics_model/{timestamp}"
+    os.makedirs(output_dir, exist_ok=True)
+    torch.save(model.state_dict(), os.path.join(output_dir, "inverse_model.pth"))
+    print(f"[INFO] Model saved to {os.path.join(output_dir, 'inverse_model.pth')}")
 
     # --- Simple Test ---
     print("\n[TESTING] Checking a few predictions...")
@@ -158,4 +162,4 @@ def train_inverse_model():
 
 if __name__ == "__main__":
     train_inverse_model()
-    # python -m train.inverse_dynamics
+    # python -m train.run_inverse_dynamics
