@@ -87,7 +87,7 @@ def train_inverse_model():
         DATA_DIR = "output"
         
     N_FILES = 1000
-    BATCH_SIZE = 64
+    BATCH_SIZE = 256
     LR = 0.001
     EPOCHS = 50
     VAL_SPLIT = 0.2  # 20% for validation
@@ -220,3 +220,17 @@ def train_inverse_model():
 
 if __name__ == "__main__":
     train_inverse_model()
+    # python -m train.run_inverse_dynamics
+    """
+    # Also [Claude](python -m train.run_inverse_dynamics) gives some tricks for improving performance, and they actually pushed accuracy to 99.09%: 
+    - Residual connections 
+    - Batch normalization 
+    - Cosine annealing learning rate schedule 
+    - Label smoothing 
+    - Larger batch size (128)
+
+    It suggested additional techniques: 
+    - Adding noise to LiDAR inputs during training 
+    - Adding more context 
+    - Ensemble (Train 3-5 models with different random seeds and average their predictions)
+    """

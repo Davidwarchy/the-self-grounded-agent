@@ -56,3 +56,8 @@ Make code as simple as possible
 It's true: Lidar does have structure even before any training takes place... this is interesting. 
 
 This is an interesting result.
+
+## Test: Inverse Dynamics Model 
+Inspired by [Learning to Poke by Poking: Experiential Learning of Intuitive Physics](https://arxiv.org/abs/1606.07419)
+
+The most important takeaway is that LiDAR data contains enough information to determine movement.Evidence: You reached ~97.6% accuracy.Meaning: If you show the model two consecutive scans ($t$ and $t+1$), it can correctly guess which of the 4 directions the robot moved nearly every time. The geometry of the environment (walls getting closer/further) provides a clear signal for movement.
