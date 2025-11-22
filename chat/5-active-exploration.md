@@ -1,4 +1,4 @@
-We want to create another part (in another folder seperate from exploration and training) that does active moving to certain objects... it does this even when it got lost during exploration. So we have a chicken and egg problem (of knowing the objects in order to move to them; and moving about in order to discover object hood!)....
+We want to create another part (in another folder seperate from exploration and training) that does active moving to certain objects... it does this even when it got lost during exploration. So we have a chicken and egg problem (of knowing the objects in order to move to them; and moving about in order to discover objecthood!)....
 
 We want to have the robot be biased to moving towards just a few objects (it's interesting how lifeform ever pay attention to just a few stimuli and not the whole barrage of stimulation coming in). 
 
@@ -49,3 +49,14 @@ We can have a system that does random walks be sufficient to survive. Again we m
 
 
 } 
+
+{202511221223:
+# More ineresting experiments 
+I recently tried experiments on inverse dynamics (trying to predict actions from lidar readings) and it gave impressive results (97% accuracy). I want us to try a couple of more interesting experiments. 
+
+I think that most interesting would be going to a place with a particular shape 
+
+How about we try encoding the readings and actions into something that is really invariant. 
+
+What about we took a couple of past n readings and we try to encode this instead of just using a single reading. What if we used past n readings... how would the architecture inputs, outputs, look like? 
+}
