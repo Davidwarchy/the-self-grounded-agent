@@ -58,5 +58,21 @@ I think that most interesting would be going to a place with a particular shape
 
 How about we try encoding the readings and actions into something that is really invariant. 
 
-What about we took a couple of past n readings and we try to encode this instead of just using a single reading. What if we used past n readings... how would the architecture inputs, outputs, look like? 
+What about we took a couple of past n readings and we try to encode this instead of just using a single reading. What if we used past n readings... how would the architecture inputs, outputs, look like?
+
+## Forward Dyanmics
+
+I did try to implement this, and it's not producing good results. 
+
+![alt text](image-2.png)
+
+## Autoencoder 
+
+Let's try to see if we can reconstruct lidar readings. 
+
+The setup is simple: 
+- Inputs lidar reading
+- Encode to latent dimension 
+- Output reconstruction 
+
 }

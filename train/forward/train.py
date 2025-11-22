@@ -29,10 +29,16 @@ class ForwardDynamicsBase(nn.Module):
     def __init__(self, input_dim=100):
         super().__init__()
         self.net = nn.Sequential(
-            nn.Linear(input_dim, 256),
+            nn.Linear(input_dim, 512),
+            nn.BatchNorm1d(512),
             nn.ReLU(),
-            nn.Dropout(0.2),
-            nn.Linear(256, 256),
+            nn.Dropout(0.3),
+            nn.Linear(512, 512),
+            nn.BatchNorm1d(512),
+            nn.ReLU(),
+            nn.Dropout(0.3),
+            nn.Linear(512, 256),
+            nn.BatchNorm1d(256),
             nn.ReLU(),
             nn.Dropout(0.2),
             nn.Linear(256, input_dim)
@@ -47,14 +53,20 @@ class ForwardDynamicsWithAction(nn.Module):
     def __init__(self, input_dim=100, num_actions=4):
         super().__init__()
         # Action embedding
-        self.action_embed = nn.Embedding(num_actions, 16)
+        self.action_embed = nn.Embedding(num_actions, 32)
         
         # Main network
         self.net = nn.Sequential(
-            nn.Linear(input_dim + 16, 256),
+            nn.Linear(input_dim + 32, 512),
+            nn.BatchNorm1d(512),
             nn.ReLU(),
-            nn.Dropout(0.2),
-            nn.Linear(256, 256),
+            nn.Dropout(0.3),
+            nn.Linear(512, 512),
+            nn.BatchNorm1d(512),
+            nn.ReLU(),
+            nn.Dropout(0.3),
+            nn.Linear(512, 256),
+            nn.BatchNorm1d(256),
             nn.ReLU(),
             nn.Dropout(0.2),
             nn.Linear(256, input_dim)
@@ -238,6 +250,9 @@ def plot_prediction_comparison(model, dataset, device, save_path, n_samples=5):
     if n_samples == 1:
         axes = [axes]
     
+    mae_list = []
+    mse_list = []
+    
     with torch.no_grad():
         for i in range(n_samples):
             idx = np.random.randint(len(dataset))
@@ -265,8 +280,11 @@ def plot_prediction_comparison(model, dataset, device, save_path, n_samples=5):
             target = target.numpy()
             pred = pred.numpy()
             
-            # Calculate error
+            # Calculate errors
             mse = np.mean((target - pred) ** 2)
+            mae = np.mean(np.abs(target - pred))
+            mae_list.append(mae)
+            mse_list.append(mse)
             
             # Plot
             ax = axes[i]
@@ -275,37 +293,55 @@ def plot_prediction_comparison(model, dataset, device, save_path, n_samples=5):
             ax.fill_between(range(len(target)), target, pred, alpha=0.2)
             ax.set_xlabel('Ray Index')
             ax.set_ylabel('Distance (normalized)')
-            ax.set_title(f'Sample {i+1} | MSE: {mse:.4f}')
+            ax.set_title(f'Sample {i+1} | MSE: {mse:.4f} | MAE: {mae:.4f}')
             ax.legend()
             ax.grid(True, alpha=0.3)
     
-    plt.tight_layout()
+    # Add summary statistics
+    fig.text(0.5, 0.02, 
+             f'Average MSE: {np.mean(mse_list):.4f} | Average MAE: {np.mean(mae_list):.4f}',
+             ha='center', fontsize=12, weight='bold')
+    
+    plt.tight_layout(rect=[0, 0.03, 1, 1])
     plt.savefig(save_path, dpi=300, bbox_inches='tight')
     plt.close()
     print(f"[INFO] Saved prediction comparison to {save_path}")
+    print(f"[INFO] Avg MSE: {np.mean(mse_list):.4f} | Avg MAE: {np.mean(mae_list):.4f}")
 
 
 def plot_training_curves(train_losses, val_losses, save_path):
     """Plot training and validation loss curves"""
-    fig, ax = plt.subplots(figsize=(10, 6))
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 5))
     
     epochs = range(1, len(train_losses) + 1)
-    ax.plot(epochs, train_losses, label='Train Loss', linewidth=2)
-    ax.plot(epochs, val_losses, label='Val Loss', linewidth=2)
+    
+    # Loss curves
+    ax1.plot(epochs, train_losses, label='Train Loss', linewidth=2)
+    ax1.plot(epochs, val_losses, label='Val Loss', linewidth=2)
     
     # Mark best validation loss
     best_epoch = np.argmin(val_losses) + 1
     best_val = min(val_losses)
-    ax.axvline(best_epoch, color='red', linestyle='--', alpha=0.5)
-    ax.scatter([best_epoch], [best_val], color='red', s=100, zorder=5)
-    ax.text(best_epoch, best_val, f'  Best: {best_val:.4f}', 
+    ax1.axvline(best_epoch, color='red', linestyle='--', alpha=0.5)
+    ax1.scatter([best_epoch], [best_val], color='red', s=100, zorder=5)
+    ax1.text(best_epoch, best_val, f'  Best: {best_val:.4f}', 
             verticalalignment='bottom')
     
-    ax.set_xlabel('Epoch')
-    ax.set_ylabel('MSE Loss')
-    ax.set_title('Training Progress')
-    ax.legend()
-    ax.grid(True, alpha=0.3)
+    ax1.set_xlabel('Epoch')
+    ax1.set_ylabel('MSE Loss')
+    ax1.set_title('Training Progress')
+    ax1.legend()
+    ax1.grid(True, alpha=0.3)
+    
+    # Log scale for better visibility
+    ax2.plot(epochs, train_losses, label='Train Loss', linewidth=2)
+    ax2.plot(epochs, val_losses, label='Val Loss', linewidth=2)
+    ax2.set_yscale('log')
+    ax2.set_xlabel('Epoch')
+    ax2.set_ylabel('MSE Loss (log scale)')
+    ax2.set_title('Training Progress (Log Scale)')
+    ax2.legend()
+    ax2.grid(True, alpha=0.3)
     
     plt.tight_layout()
     plt.savefig(save_path, dpi=300, bbox_inches='tight')
@@ -380,15 +416,19 @@ def train_forward_model(config):
     
     # Training setup
     criterion = nn.MSELoss()
-    optimizer = optim.Adam(model.parameters(), lr=config['lr'])
-    scheduler = optim.lr_scheduler.ReduceLROnPlateau(
-        optimizer, mode='min', factor=0.5, patience=5, verbose=True
+    optimizer = optim.AdamW(model.parameters(), lr=config['lr'], weight_decay=0.01)
+    scheduler = optim.lr_scheduler.CosineAnnealingWarmRestarts(
+        optimizer, T_0=10, T_mult=2, eta_min=1e-6
     )
     
     best_model_path = os.path.join(output_dir, "best_model.pth")
     best_val_loss = float('inf')
     train_losses = []
     val_losses = []
+    patience_counter = 0
+    patience = 10  # Early stopping patience
+    
+    print(f"\n[INFO] Model has {sum(p.numel() for p in model.parameters()):,} parameters\n")
     
     # Training loop
     for epoch in range(config['epochs']):
@@ -415,6 +455,7 @@ def train_forward_model(config):
             
             optimizer.zero_grad()
             loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
             optimizer.step()
             
             train_loss += loss.item()
@@ -447,14 +488,16 @@ def train_forward_model(config):
         avg_val_loss = val_loss / len(val_loader)
         val_losses.append(avg_val_loss)
         
-        # Learning rate scheduling
-        scheduler.step(avg_val_loss)
+        # Learning rate scheduling (step every epoch, not on plateau)
+        scheduler.step()
+        current_lr = optimizer.param_groups[0]['lr']
         
-        print(f"Epoch {epoch+1:02d} | Train: {avg_train_loss:.4f} | Val: {avg_val_loss:.4f}")
+        print(f"Epoch {epoch+1:02d} | Train: {avg_train_loss:.4f} | Val: {avg_val_loss:.4f} | LR: {current_lr:.6f}")
         
         # Save best model
         if avg_val_loss < best_val_loss:
             best_val_loss = avg_val_loss
+            patience_counter = 0
             torch.save({
                 'epoch': epoch,
                 'model_state_dict': model.state_dict(),
@@ -463,6 +506,11 @@ def train_forward_model(config):
                 'config': config
             }, best_model_path)
             print(f"    >>> New Best! Saved to {best_model_path}")
+        else:
+            patience_counter += 1
+            if patience_counter >= patience:
+                print(f"\n[INFO] Early stopping triggered after {epoch+1} epochs")
+                break
     
     # Load best model and generate plots
     print("\n[INFO] Generating visualizations...")
@@ -495,7 +543,8 @@ def train_forward_model(config):
 # 5. Main Entry Point
 # ==========================================
 
-if __name__ == "__main__":
+def main():
+    """Main entry point for the script"""
     parser = argparse.ArgumentParser(description="Train Forward Dynamics Model")
     
     parser.add_argument("--model_type", type=str, required=True,
@@ -536,16 +585,19 @@ if __name__ == "__main__":
     
     train_forward_model(config)
 
+
+if __name__ == "__main__":
+    main()
     """
     # Base model (no conditioning)
-    python -m train.run_forward_dynamics --model_type base --epochs 50
+    python -m train.forward.train --model_type base --epochs 5
 
     # With action only
-    python -m train.run_forward_dynamics --model_type action --epochs 50
+    python -m train.forward.train --model_type action --epochs 5
 
     # With history (default 3 frames)
-    python -m train.run_forward_dynamics --model_type history --history_len 5 --epochs 50
+    python -m train.forward.train --model_type history --history_len 5 --epochs 5
 
     # Complete model (history + action)
-    python -m train.run_forward_dynamics --model_type complete --history_len 3 --epochs 50
+    python -m train.forward.train --model_type complete --history_len 3 --epochs 5
     """
