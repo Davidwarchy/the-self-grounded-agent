@@ -76,3 +76,24 @@ The setup is simple:
 - Output reconstruction 
 
 }
+
+# References 
+## [LiDAR: Sensing Linear Probing Performance in Joint Embedding SSL Architectures](https://arxiv.org/pdf/2312.04000)
+The paper addresses a critical bottleneck in Self-Supervised Learning (SSL): **how to evaluate the quality of learned representations without running expensive downstream tasks**.
+
+I think that the answer to this is that, we don't know of how to evaluate this... (at least in the context of alife). 
+
+### Critique 
+tbh, this appears to be very sketchy
+it's right at the heart of what I'm studying right now - developing perception for fitness
+the problem with the paper is that it ultimately makes the mistake of using a human designed mathematical notion as the thing we are optimizing, so we can't really apply it to our life on silicon paradigm. It's not related to fitness. 
+We just want to to develop perception that helps us survive, the problem is that survival doesn't have a quantifiable mathemtical loss function (unless we assume some form of central control). 
+I would love to hear more about this sort of things from other people, papers, videos
+
+## [A Survey on Self-Supervised Representation Learning](https://arxiv.org/pdf/2308.11455)
+
+Says that images often contain information that is irrelevant for downstream tasks. 
+
+Good representations are those that have good downstream properties. 
+
+
