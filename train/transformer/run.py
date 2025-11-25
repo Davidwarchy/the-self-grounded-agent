@@ -78,7 +78,7 @@ def train_transformer(config):
         with open(metadata_path, 'r') as f:
             meta = json.load(f)
         img = meta.get("environment_parameters", {}).get("map_image")
-        if img: map_image_path = os.path.join(config['data_dir'], img)
+        if img: map_image_path = os.path.join('environments/images', img)
 
     print("[INFO] Starting Training...")
     
