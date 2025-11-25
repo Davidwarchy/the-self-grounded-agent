@@ -1,4 +1,6 @@
-# Robot Exploration Environment
+# Robot Exploration 
+
+A tiny two-wheel robot with a 100-ray lidar learns objecthood from pure sensorimotor experience. With no labels or tasks, it samples simple actions and tracks how they distort the lidar stream, revealing stable “things” in the world—structures it can use to predict, navigate, and act coherently.
 
 A lightweight Gym-style setup for 2D robot navigation and exploration using lidar.
 
