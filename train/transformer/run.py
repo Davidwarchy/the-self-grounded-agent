@@ -143,6 +143,7 @@ if __name__ == "__main__":
     parser.add_argument("--lr", type=float, default=0.0005)
     parser.add_argument("--num_epochs", type=int, default=30)
     parser.add_argument("--vis_interval", type=int, default=5)
+    parser.add_argument("--save_embeddings", action="store_true", help="Save validation embeddings .npy file every visualization epoch")
     
     args = parser.parse_args()
     
@@ -160,7 +161,8 @@ if __name__ == "__main__":
         'margin': 1.0,
         'num_epochs': args.num_epochs,
         'vis_interval': args.vis_interval,
-        'learning_rate': args.lr # Alias for visualization compat
+        'learning_rate': args.lr, # Alias for visualization compat
+        'save_embeddings': args.save_embeddings
     }
     
     train_transformer(config)

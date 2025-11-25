@@ -38,7 +38,9 @@ def parse_args():
     parser.add_argument("--distance_threshold", type=float, default=config_fields['distance_threshold'].default)
     parser.add_argument("--temporal_window", type=int, default=config_fields['temporal_window'].default)
     parser.add_argument("--far_threshold", type=int, default=config_fields['far_threshold'].default)
-
+    parser.add_argument("--save_embeddings", action="store_true", 
+                            help="Save validation embeddings .npy file every visualization epoch")
+    
     args = parser.parse_args()
 
     # Parse hidden_dims if provided
@@ -69,6 +71,7 @@ def main():
         distance_threshold=args.distance_threshold,
         temporal_window=args.temporal_window,
         far_threshold=args.far_threshold,
+        save_embeddings=args.save_embeddings
     )
 
     print("[CONFIG]")
@@ -81,5 +84,5 @@ if __name__ == "__main__":
     main()
 
     # --------------------------------------------------------------
-    # python -m train.run_train --num_epochs 100 --vis_interval 1 --batch_size 64 --data_dir output/2025-11-14-111925_random_walk_100k --hidden_dims 256 --embedding_dim 64
+    # python -m train.run_train --num_epochs 10 --vis_interval 1 --batch_size 64 --data_dir output/2025-11-14-111925_random_walk_100k --hidden_dims 10 --embedding_dim 64
     # --------------------------------------------------------------

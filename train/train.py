@@ -55,7 +55,8 @@ def run_visualization(model, epoch, config, run_dir, map_image_path, val_ds):
     model.eval()
     val_emb = extract_embeddings(model, val_ds)
     # Save embeddings for this epoch (useful for later analysis)
-    np.save(os.path.join(run_dir, f"val_emb_epoch_{epoch}.npy"), val_emb)
+    if config.save_embeddings:
+        np.save(os.path.join(run_dir, f"val_emb_epoch_{epoch}.npy"), val_emb)
     valid = val_ds.valid_slice
 
     # 3. Fit PCA once on *all* validation embeddings (for consistent coloring)

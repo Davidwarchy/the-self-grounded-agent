@@ -63,12 +63,14 @@ def validate(model, loader, criterion):
 
 def generate_visualizations(model, val_ds, epoch, run_dir, map_image_path,
                            emb_map_dir, cluster_dir, orientation_dirs,
-                           target_orientations, orientation_tolerance):
+                           target_orientations, orientation_tolerance,
+                           save_embeddings=False):
     """Generate and save all visualizations for a given epoch."""
     
     # Extract embeddings
     val_emb = extract_embeddings(model, val_ds)
-    np.save(os.path.join(run_dir, f"val_emb_epoch_{epoch}.npy"), val_emb)
+    if save_embeddings:
+        np.save(os.path.join(run_dir, f"val_emb_epoch_{epoch}.npy"), val_emb)
     valid = val_ds.valid_slice
     
     # Fit PCA once for consistent coloring across all plots
@@ -243,7 +245,8 @@ def train_temporal_model(config):
     generate_visualizations(
         model, val_ds, 0, run_dir, map_image_path,
         emb_map_dir, cluster_dir, orientation_dirs,
-        target_orientations, orientation_tolerance
+        target_orientations, orientation_tolerance,
+        save_embeddings=config.get('save_embeddings', False) 
     )
     
     for epoch in range(config['num_epochs']):
@@ -302,10 +305,11 @@ def train_temporal_model(config):
         if (epoch + 1) % config['vis_interval'] == 0 or epoch == config['num_epochs'] - 1:
             print(f"[INFO] Generating visualizations (epoch {epoch+1})...")
             generate_visualizations(
-                model, val_ds, epoch + 1, run_dir, map_image_path,
-                emb_map_dir, cluster_dir, orientation_dirs,
-                target_orientations, orientation_tolerance
-            )
+                    model, val_ds, epoch + 1, run_dir, map_image_path,
+                    emb_map_dir, cluster_dir, orientation_dirs,
+                    target_orientations, orientation_tolerance,
+                    save_embeddings=config.get('save_embeddings', False) # NEW
+                )
     
     # Save final embeddings
     print("\n[INFO] Extracting final embeddings...")
@@ -367,7 +371,8 @@ if __name__ == "__main__":
                        help="Margin for contrastive loss")
     parser.add_argument("--vis_interval", type=int, default=5,
                        help="Generate visualizations every N epochs")
-    
+    parser.add_argument("--save_embeddings", action="store_true",
+                       help="Save validation embeddings .npy files per epoch")
     args = parser.parse_args()
     
     # Create config dict
@@ -381,7 +386,8 @@ if __name__ == "__main__":
         'num_epochs': args.num_epochs,
         'learning_rate': args.learning_rate,
         'margin': args.margin,
-        'vis_interval': args.vis_interval
+        'vis_interval': args.vis_interval, 
+        'save_embeddings': args.save_embeddings
     }
     
     print("="*60)

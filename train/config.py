@@ -18,6 +18,7 @@ class TrainingConfig:
     learning_rate: float = 0.001
     margin: float = 1.0
     vis_interval: int = 5
+    save_embeddings: bool = False
 
     # Evaluation
     distance_threshold: float = 5.0
