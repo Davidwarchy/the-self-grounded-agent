@@ -24,6 +24,14 @@ def train_transformer(config):
     print(f"[INFO] Training Transformer on {device}")
     
     run_dir = create_output_dir(base_dir=config['data_dir'])
+
+        
+    # --- Create Visualization Directories explicitly ---
+    os.makedirs(os.path.join(run_dir, "final_embedding_map"), exist_ok=True)
+    os.makedirs(os.path.join(run_dir, "clusters"), exist_ok=True)
+    os.makedirs(os.path.join(run_dir, "oriented_embeddings"), exist_ok=True)
+    # ------------------------------------------------------
+    
     
     # Save Config
     with open(os.path.join(run_dir, "config.json"), 'w') as f:
@@ -134,6 +142,7 @@ if __name__ == "__main__":
     parser.add_argument("--batch_size", type=int, default=128)
     parser.add_argument("--lr", type=float, default=0.0005)
     parser.add_argument("--num_epochs", type=int, default=30)
+    parser.add_argument("--vis_interval", type=int, default=5)
     
     args = parser.parse_args()
     
@@ -150,7 +159,7 @@ if __name__ == "__main__":
         'lr': args.lr,
         'margin': 1.0,
         'num_epochs': args.num_epochs,
-        'vis_interval': 5,
+        'vis_interval': args.vis_interval,
         'learning_rate': args.lr # Alias for visualization compat
     }
     

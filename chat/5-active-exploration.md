@@ -117,8 +117,19 @@ Realistic. Job. Replace paper towels. Fold laundry. Assemble cups or boxes.
 } 
 
 {202511250606:
-## [Evolution of Rewards for Food and Motor Action by Simulating Birth and Death](https://watermark02.silverchair.com/isal_a_00753.pdf?token=AQECAHi208BE49Ooan9kkhW_Ercy7Dm3ZL_9Cf3qfKAc485ysgAAA0owggNGBgkqhkiG9w0BBwagggM3MIIDMwIBADCCAywGCSqGSIb3DQEHATAeBglghkgBZQMEAS4wEQQMWnfKxtWZca2DDPOAAgEQgIIC_amfeH3x1rqU5R0i3zPGqLZQ7ZqzGmaVnqlInMxehkq9wcOClVyKaLrSkgjAq5mYyqnENdnC6rFKW5FWUdGuQCA6URX95Psh06O_h6YpxHig8v5Tjl6uocCqWI-h1c8GL93wtk7tJ1VVqrP5VaR_VuqbK6ND9McmogC_tMforFuhn42BA6HWGbJMpzJv46qaQhObF3iiKsZFt497KOSXt7VaeQDGW3nEeRL2bK9iLhFWCN8fQJdKyd2mtBg_GN9CwFP3To9YD09OcT6YXw91q6gouAi77Q1vXGJe2gD6PLxVoXStgL-16op52gDKtV4ZZufuOzEHNeNLZJvg-cp8mvbeiGvefwvVL1az9KH-RjbM_0CDdDaZsK9KYDpbBAxDSDCWcp0pXZT4Q6fMGykXOyS6QaRkOrfvH9ETURPZO8hQOY2ion0GLLvZqIklfJXnuwiUiLRUkh8vYGt7DdxU7Kiwfldp6qqu_TWX63c57PslmZFa-2m_qbD6Q_4Q14-qrHTCZCFkZL_3oTYm6MpUov1r41NA9T-9jbjvDDlfOAIh1ZfTm49qViwI0KI996pSAI9R3Uz9k8588TYSUU9Mp8MrFs5qPC-IrFAyiVYFE2mo9Fvxqsm6GsagIM3uzGq-Ng3ARveZ_bnJ8GgCMTnAQCte5873OdJ2f9TRtILwKrorO_UsWSjS9W3jJkhafUFDQUdrh3vqV1gAYJEt182esaFCeovTQ34NgSTU5jlrT349FDjGzZhpAVYkmxYHiOFR93E1dGAQWByJzKbT0cxTSqSLWKDTof60Momig9NmOCwWHHJIg0I-5QZqmcS9PTFxo0yiZfhkroaKIlPA8xDPXy6A1ZPzmxOiDiAkd5uYfCo4wyF2x_afzvfIiCr5Qa9Ygzl_siVfxn8i9BZYLsRS6C8ZMkMBYWS1G76BioMYRASWbFQmlUBdnt6r-VNAqcwTAR_FKkV0A8ML_HSA3KOxCWkPPHbmNq_2eQJwUOZ-X0dtSq_0SG9pBseDysx-FA)
+## [Evolution of Rewards for Food and Motor Action by Simulating Birth and Death](https://direct.mit.edu/isal/proceedings-pdf/isal2024/36/35/2461175/isal_a_00753.pdf)
 [Code](https://github.com/oist/emevo)
+
+@inproceedings{kanagawa2024evolution,
+  title        = {Evolution of Rewards for Food and Motor Action by Simulating Birth and Death},
+  author       = {Kanagawa, Yuji and Doya, Kenji},
+  booktitle    = {Artificial Life Conference Proceedings 36},
+  year         = {2024},
+  publisher    = {MIT Press},
+  url          = {https://mitpress.mit.edu/},
+  note         = {ALIFE 2024}
+}
+
 Evolution of the reward system. 
 
 ### Robot 
@@ -177,5 +188,18 @@ Agent rewards internal state like high energy. RL does reinforcement for us, mak
 
 In agents that aren't fit, the opposite happens. It makes the wrong guesses, rewards bad actions, and punished by death. 
 
+## [Evolution of Fear and Social Rewards in Prey-Predator Relationship](https://arxiv.org/pdf/2507.09992)
+
+@article{kanagawa2025evolution,
+  title        = {Evolution of Fear and Social Rewards in Prey-Predator Relationship},
+  author       = {Kanagawa, Yuji and Doya, Kenji},
+  journal      = {arXiv preprint arXiv:2507.09992},
+  year         = {2025},
+  url          = {https://arxiv.org/abs/2507.09992}
+}
+
+This is by the same author as [Evolution of Rewards for Food and Motor Action by Simulating Birth and Death](https://direct.mit.edu/isal/proceedings-pdf/isal2024/36/35/2461175/isal_a_00753.pdf). They make the same ommision as in the other paper, of specifying the reward function in terms of human known fitness proxies. 
+
+It's interesting that reward functions don't appear in classical life until we have high level animals. Bacteria and archaea basically have come to exploit luck and clever strategies (levy walks) in order to get to food. 
 
 }
