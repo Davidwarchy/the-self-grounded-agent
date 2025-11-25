@@ -19,6 +19,12 @@ Maps are stored as bitmap images in `environments/`.
 
 The agent is a differential-drive robot (two wheels) with **100 lidar rays**.
 
+Ensure that requirements are installed 
+
+```bash
+!pip install -r requirements.txt
+``` 
+
 You can run exploration with predefined strategies. Example: random walk.
 
 ```bash
