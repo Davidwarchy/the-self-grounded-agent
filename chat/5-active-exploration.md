@@ -77,6 +77,17 @@ The setup is simple:
 
 }
 
+{202511231041:
+
+
+# Goal Encoding, Goal Navigation 
+Where I am currently - the types of objects and a sense of their layout 
+How to get to some other place 
+Encoding goals and moving towards goal (ie, how do we encode goals as a pattern of perceptions and actions) 
+How do we tie this into something that we can generalize to other environments 
+
+Currently our system is able to highly correlate with distance from obstacles... this is an interesting results, but I think that we can do better. I think that we can get a system that encodes a whole lot of place
+
 # References 
 ## [LiDAR: Sensing Linear Probing Performance in Joint Embedding SSL Architectures](https://arxiv.org/pdf/2312.04000)
 The paper addresses a critical bottleneck in Self-Supervised Learning (SSL): **how to evaluate the quality of learned representations without running expensive downstream tasks**.
@@ -96,4 +107,75 @@ Says that images often contain information that is irrelevant for downstream tas
 
 Good representations are those that have good downstream properties. 
 
+## [Fully autonomous robots are much closer than you think – Sergey Levine](https://www.youtube.com/watch?v=48pxVdmkMIE)
 
+Continuous action model; 
+
+Using only high quality is bad! The robot makes mistakes. Humans rarely make mistakes. Robots need to know how recover from mistakes, so mistakes are essential. All data collected by robot operators. 
+
+Realistic. Job. Replace paper towels. Fold laundry. Assemble cups or boxes. 
+} 
+
+{202511250606:
+## [Evolution of Rewards for Food and Motor Action by Simulating Birth and Death](https://watermark02.silverchair.com/isal_a_00753.pdf?token=AQECAHi208BE49Ooan9kkhW_Ercy7Dm3ZL_9Cf3qfKAc485ysgAAA0owggNGBgkqhkiG9w0BBwagggM3MIIDMwIBADCCAywGCSqGSIb3DQEHATAeBglghkgBZQMEAS4wEQQMWnfKxtWZca2DDPOAAgEQgIIC_amfeH3x1rqU5R0i3zPGqLZQ7ZqzGmaVnqlInMxehkq9wcOClVyKaLrSkgjAq5mYyqnENdnC6rFKW5FWUdGuQCA6URX95Psh06O_h6YpxHig8v5Tjl6uocCqWI-h1c8GL93wtk7tJ1VVqrP5VaR_VuqbK6ND9McmogC_tMforFuhn42BA6HWGbJMpzJv46qaQhObF3iiKsZFt497KOSXt7VaeQDGW3nEeRL2bK9iLhFWCN8fQJdKyd2mtBg_GN9CwFP3To9YD09OcT6YXw91q6gouAi77Q1vXGJe2gD6PLxVoXStgL-16op52gDKtV4ZZufuOzEHNeNLZJvg-cp8mvbeiGvefwvVL1az9KH-RjbM_0CDdDaZsK9KYDpbBAxDSDCWcp0pXZT4Q6fMGykXOyS6QaRkOrfvH9ETURPZO8hQOY2ion0GLLvZqIklfJXnuwiUiLRUkh8vYGt7DdxU7Kiwfldp6qqu_TWX63c57PslmZFa-2m_qbD6Q_4Q14-qrHTCZCFkZL_3oTYm6MpUov1r41NA9T-9jbjvDDlfOAIh1ZfTm49qViwI0KI996pSAI9R3Uz9k8588TYSUU9Mp8MrFs5qPC-IrFAyiVYFE2mo9Fvxqsm6GsagIM3uzGq-Ng3ARveZ_bnJ8GgCMTnAQCte5873OdJ2f9TRtILwKrorO_UsWSjS9W3jJkhafUFDQUdrh3vqV1gAYJEt182esaFCeovTQ34NgSTU5jlrT349FDjGzZhpAVYkmxYHiOFR93E1dGAQWByJzKbT0cxTSqSLWKDTof60Momig9NmOCwWHHJIg0I-5QZqmcS9PTFxo0yiZfhkroaKIlPA8xDPXy6A1ZPzmxOiDiAkd5uYfCo4wyF2x_afzvfIiCr5Qa9Ygzl_siVfxn8i9BZYLsRS6C8ZMkMBYWS1G76BioMYRASWbFQmlUBdnt6r-VNAqcwTAR_FKkV0A8ML_HSA3KOxCWkPPHbmNq_2eQJwUOZ-X0dtSq_0SG9pBseDysx-FA)
+[Code](https://github.com/oist/emevo)
+Evolution of the reward system. 
+
+### Robot 
+**Sensors**: 16 ray lidar (implemented as distance sensors); A tactile sensor detecting physical contact; Proprioception: Velocity, Angle, and Internal Energy level
+**Actuators**: 2 wheel differential drive
+
+### Critiques
+Too much assumption for reality: reproduction (how would this happen in real metal/silicon)
+
+"positive rewards for food acquisition and negative rewards for motor action can evolve from randomly initialized ones" This is interesting - the claim is that fitness rewards can emerge rom random rewards. 
+
+I'm not surprised that there's positive rewards for motor actions, since we tend to reward actions that lead to bigger rewards. There's something good and bad in my argument. 
+
+How are the sensors of the robot? Actuators? 
+
+It's decentralized
+
+Simpified model of death. Death can be due to a great deal of factors, eg, physical damage, dysfunction (disease)
+
+A lot of copying from natural life. Asexual reproduction is assumed (how would it be realized in practice?), need for hunting food (we don't know about this in the real world)... 
+
+I'd imagene. 
+
+I think that there was already assumed that food and energy are good. But in reality evolution never really knows if something is good. 
+
+Eating food 
+
+#### On Emergence of Fitness-relevant Rewards
+"positive rewards for food acquisition and negative rewards for motor action can evolve from randomly initialized ones" I now find their claim to be false. It appeared to be something like "We have a robot with lidar rays and differential drive. We make it move about the environment optimizing for random things, but it ends up optimizing for food and motion." But it seems that they just optmized for food and motion, and got what we expected. 
+
+I was a bit wrong and too harsh here. 
+
+The reward function is like: $$r = w_{food} \cdot \text{food\_intake} + w_{act} \cdot \text{action}$$
+
+They then randomize the weights. They initialized the agents with random weights ($w_{food}$ and $w_{act}$)
+
+- Some agents started out hating food (negative weight). They avoided food, starved, and died.
+- Some agents started out hating movement. They sat still, starved, and died.
+- The "evolution" was the survival filter. Only the random agents that happened to have $w_{food} > 0$ survived long enough to reproduce. 
+
+While I was harsh, I had something correct: The researchers did pre-determine the inputs to the reward function. They hardcoded the reward equation to look like this:
+
+$$r = w_{food} \cdot \text{food\_intake} + w_{act} \cdot \text{action}$$
+
+So what the experiment was essentially doing was emerging the +/- sign on he weights. We are essentially evolving a reward function constrained to food intake and action. 
+
+The critique that **"evolution never really knows if something is good"** is the most poignant. In this simulation, evolution did act as the judge, but the researchers rigged the jury by only letting the reward function "see" food and motion. A truly open-ended evolution would have let the agent choose its own reward inputs from raw pixel/lidar data, rather than pre-processed "food eaten" counters.
+
+"Agents that accidentally evolve a network that outputs Positive Reward when Lidar detects small circular objects (food) will learn to approach them via Reinforcement Learning." ~ [Gem](https://gemini.google.com/app/a6b9d06458f97e82)
+
+Not really. 
+
+I think that the fundamental thing will be something like this: 
+
+Agent rewards internal state like high energy. RL does reinforcement for us, making us reinforce movements that lead to the high energy. This is what will happen in fit agents. This might backpropagate into something like developing fast movements towards food-like blobs. 
+
+In agents that aren't fit, the opposite happens. It makes the wrong guesses, rewards bad actions, and punished by death. 
+
+
+}

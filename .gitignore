@@ -5,3 +5,7 @@ robot_path.npy
 outputs/
 output/
 profile.out
+train/dino/__init__.py
+train/dino/dino.py
+train/dino/run_dino.py
+dino_models/dino_lidar.pth
