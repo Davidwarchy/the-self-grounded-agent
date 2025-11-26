@@ -118,7 +118,7 @@ def train_transformer(config):
         
         scheduler.step()
         
-        print(f"Epoch {epoch+1:02d} | Train: {avg_train:.4f} | Val: {avg_val:.4f}")
+        print(f"Epoch {epoch+1:02d}/{config['num_epochs']:02d} | Train: {avg_train:.4f} | Val: {avg_val:.4f}")
         
         if avg_val < best_val:
             best_val = avg_val

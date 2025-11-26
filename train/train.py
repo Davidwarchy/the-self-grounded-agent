@@ -97,7 +97,7 @@ def run_visualization(model, epoch, config, run_dir, map_image_path, val_ds):
     cluster_path = os.path.join(cluster_dir, f"epoch_{epoch}.png")
     plot_clusters_grid(cluster_results, save_path=cluster_path)
 
-    print(f"[INFO] Epoch {epoch} Visualization Complete. Plots saved to {emb_map_dir} and related folders.")
+    print(f"[INFO] Epoch {epoch}/{config.num_epochs} Visualization Complete. Plots saved to {emb_map_dir} and related folders.")
 
 
 def train(config):

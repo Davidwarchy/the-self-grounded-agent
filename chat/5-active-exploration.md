@@ -200,6 +200,146 @@ In agents that aren't fit, the opposite happens. It makes the wrong guesses, rew
 
 This is by the same author as [Evolution of Rewards for Food and Motor Action by Simulating Birth and Death](https://direct.mit.edu/isal/proceedings-pdf/isal2024/36/35/2461175/isal_a_00753.pdf). They make the same ommision as in the other paper, of specifying the reward function in terms of human known fitness proxies. 
 
-It's interesting that reward functions don't appear in classical life until we have high level animals. Bacteria and archaea basically have come to exploit luck and clever strategies (levy walks) in order to get to food. 
+It's interesting that reward functions don't appear in classical life until we have high level animals. Bacteria and archaea basically have come to exploit luck and clever strategies (levy walks) in order to get to food. At what stage do reward functions appear in life? At what level of complexity? 
 
+https://gemini.google.com/app/7903122717f63ddf
 }
+
+"The core idea is that dopamine doesn't just signal "good," it directly instructs the nervous system to strengthen the specific neural connections that were active just before the reward arrived." ~ [Deep](https://chat.deepseek.com/a/chat/s/f83e9607-62d3-422e-8e4e-006a26f9da4e)
+
+## C elegans
+
+[Gem](https://gemini.google.com/app/da73736d5408d9e6) gives a good description of the mechanics of _C. elegans_
+
+### [THE GENETICS OF CAENORHABDZTZS ELEGANS](https://wormatlas.org/papers/Brenner1974.pdf)
+@article{brenner1974genetics,
+  title={The genetics of *Caenorhabditis elegans*},
+  author={Brenner, Sydney},
+  journal={Genetics},
+  volume={77},
+  number={1},
+  pages={71--94},
+  year={1974},
+  doi={10.1093/genetics/77.1.71}
+}
+[c elegans video](https://www.youtube.com/watch?v=zjqLwPgLnV0) nice video on the nematode 
+
+- genes specify the structure and function of the nervous system
+
+![alt text](image-3.png)
+
+### [The Fundamental Role of Pirouettes in Caenorhabditis elegans Chemotaxis](https://pmc.ncbi.nlm.nih.gov/articles/PMC6782915/)
+@article{shimomura1999pirouettes,
+  author    = {Pierce-Shimomura, J. T. and Morse, T. M. and Lockery, S. R.},
+  title     = {The fundamental role of pirouettes in \textit{Caenorhabditis elegans} chemotaxis},
+  journal   = {Journal of Neuroscience},
+  year      = {1999},
+  volume    = {19},
+  number    = {21},
+  pages     = {9557--9569},
+  doi       = {10.1523/JNEUROSCI.19-21-09557.1999}
+}
+
+The abstract explain things well: 
+
+"""
+To investigate the behavioral mechanism of chemotaxis inCaenorhabditis elegans, we recorded the instantaneous position, speed, and turning rate of single worms as a function of time during chemotaxis in gradients of the attractants ammonium chloride or biotin. Analysis of turning rate showed that each worm track could be divided into periods of smooth swimming (runs) and periods of frequent turning (pirouettes). The initiation of pirouettes was correlated with the rate of change of concentration (dC/dt) but not with absolute concentration. Pirouettes were most likely to occur when a worm was heading down the gradient (dC/dt < 0) and least likely to occur when a worm was heading up the gradient (dC/dt > 0). Further analysis revealed that the average direction of movement after a pirouette was up the gradient. These observations suggest that chemotaxis is produced by a series of pirouettes that reorient the animal to the gradient. We tested this idea by imposing the correlation between pirouettes and dC/dt on a stochastic point model of worm motion. The model exhibited chemotaxis behavior in a radial gradient and also in a novel planar gradient. Thus, the pirouette model ofC. elegans chemotaxis is sufficient and general.
+"""
+
+It's exactly like run and tumbles in _E. coli_. 
+
+
+These might show my journey to understanding motion in _C. elegans_: 
+- https://chatgpt.com/c/69267b23-7688-8327-8596-ad1de7c27ac0
+- https://gemini.google.com/app/da73736d5408d9e6
+
+### [C. elegans II](https://www.ncbi.nlm.nih.gov/books/NBK20005/)
+@incollection{riddle1997mechanosensory,
+  title = {Mechanosensory Control of Locomotion},
+  author = {Riddle, David L. and Blumenthal, Thomas and Meyer, Barbara J. and others},
+  booktitle = {C. elegans II},
+  edition = {2nd},
+  editor = {Riddle, David L. and Blumenthal, Thomas and Meyer, Barbara J. and Priess, Judith R.},
+  publisher = {Cold Spring Harbor Laboratory Press},
+  address = {Cold Spring Harbor, NY},
+  year = {1997},
+  pages = {Chapter II, (exact pages if known)},
+}
+
+
+book says that the stimuli that celegans reacts to are: 
+- mechanical (touch) 
+- chemical 
+- thermal 
+
+structure of c elegans 
+- a tube 
+- sensors 
+- - temperature (thermal)
+- - chemical (chemical)
+- - touch (mechanical) 
+- - no eyes, or long range sensors 
+- muscle cells
+- - mouth cells (20 cells) 
+- - intestinal cells (2 cells)
+- - defecation cells (2 cells) 
+
+- - Sex-specific muscles
+- - - Hermaphrodites add: 8 vulval, 8 uterine, Contractile gonadal sheath
+- - - Males add: 41 mating muscles
+
+c elegans has 959 somatic cells (everything except sperm/eggs): 
+- 302 neurons 
+- 95 body-wall muscle cells
+- 20 pharyngeal (mouth) muscle cells
+
+
+"B-type motor neurons” aren’t just ordinary neurons — they integrate proprioceptive feedback and drive rhythmic locomotion"
+I was stuck on this point for a long time. Bascially from morning to afternoon. 
+
+### [Proprioceptive coupling within motor neurons drives C. elegans forward locomotion](https://pmc.ncbi.nlm.nih.gov/articles/PMC3508473/)
+@article{wen2012proprioceptive,
+  title={Proprioceptive coupling within motor neurons drives C. elegans forward locomotion},
+  author={Wen, Qing and Po, Matthew D and Hulme, Elizabeth and Chen, Sherry and Liu, Xinyu and Kwok, Simon W and Gershow, Marc and Leifer, Andrew M and Butler, Victoria and Fang-Yen, Christopher and Kawano, Tomohiro and Schafer, William R and Whitesides, George and Wyart, Matthieu and Chklovskii, Dmitri B and Zhen, Mei and Samuel, Aravinthan D T},
+  journal={Neuron},
+  volume={76},
+  number={4},
+  pages={750--761},
+  year={2012},
+  publisher={Elsevier},
+  doi={10.1016/j.neuron.2012.08.039},
+  url={https://doi.org/10.1016/j.neuron.2012.08.039}
+}
+"Here, we examined whether the worm motor circuit has proprioceptive properties and how these properties are connected to undulatory dynamics." One would better understand this if they have a good picure of SENSORY NEURONS -> INTERNEURONS -> MOTOR NEURONS -> MUSCLE CELLS
+
+I found this to have a good intro on c elegans
+
+"How the C. elegans motor circuit organizes bending waves along its body during locomotion is poorly understood." So this was true circa 2012
+
+Let's define a segment as a cylindrical section, part of the larger cylinder. 
+
+"How the C. elegans motor circuit organizes bending waves along its body during locomotion is poorly understood. Even when all premotor interneurons are ablated (Kawano et al., 2011; Zheng et al., 1999), C. elegans retains the ability to generate local body bending, suggesting that the motor circuit itself (A, B, and D-type neurons and muscle cells) can generate undulatory waves. However, the synaptic connectivity of the motor circuit does not contain motifs that might be easily interpreted as local CPG elements that could spontaneously generate oscillatory activity, e.g., oscillators driven by mutual inhibition between two neuronal classes that can be found in larger animals (Figure 1B). The synaptic connectivity does contain a pattern to avoid simultaneous contraction of both ventral and dorsal muscles; the VB and DB motor neurons that activate the ventral and dorsal muscles also activate the opposing inhibitory GABAergic motor neurons (DD and VD, respectively). However, this contralateral inhibition generated by GABAergic neurons is not essential for rhythmic activity along the body or the propagation of undulatory waves during forward locomotion (McIntire et al., 1993)." 
+
+this is rich. 
+
+Totally inspired by the paper to do something like a simulation of a worm in webots
+- [Design and Evaluation of a Snake Robot withBio-inspired Locomotion over Uneven Terrain](https://www.ijmerr.com/2025/IJMERR-V14N1-78.pdf)
+
+"C. elegans moves forward on its side by propagating dorsal-ventral body bending waves from head to tail." Also this paper confirmed that c elegans moves forward on its side. 
+
+I think that also relevant to the concept of self-grounding is how control system exploit the mechanics (motor neurons propagating undulation)
+
+### [Inhibition Underlies Fast Undulatory Locomotion in Caenorhabditis elegans](https://pmc.ncbi.nlm.nih.gov/articles/PMC7986531/)
+@article{deng2021inhibition,
+  author    = {Deng, Lin and Denham, John E. and Arya, Chandni and Yuval, Oded and Cohen, Nir and Haspel, Gal},
+  title     = {Inhibition Underlies Fast Undulatory Locomotion in *Caenorhabditis elegans*},
+  journal   = {eNeuro},
+  volume    = {8},
+  number    = {2},
+  pages     = {ENEURO.0241-20.2020},
+  year      = {2021},
+  doi       = {10.1523/ENEURO.0241-20.2020}
+}
+
+pretty interesting that inhibitions makes things fast in _C. elegans_ 
+
