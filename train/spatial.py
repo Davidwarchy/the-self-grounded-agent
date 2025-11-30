@@ -41,7 +41,7 @@ def plot_embedding_distribution(
     plt.tight_layout()
     plt.savefig(save_path, dpi=300, bbox_inches='tight')
     plt.close()
-    print(f"[INFO] Saved embedding distribution: {save_path}")
+    # print(f"[INFO] Saved embedding distribution: {save_path}")
 
 
 def plot_oriented_embedding_distribution(
@@ -97,7 +97,7 @@ def plot_oriented_embedding_distribution(
     plt.tight_layout()
     plt.savefig(save_path, dpi=300, bbox_inches='tight')
     plt.close()
-    print(f"[INFO] Saved oriented embedding distribution: {save_path}")
+    # print(f"[INFO] Saved oriented embedding distribution: {save_path}")
 
 def plot_cluster_spatial_distribution(embeddings, x, y, save_path, n_clusters=50, map_image_path=None):
     from sklearn.cluster import KMeans
@@ -122,4 +122,4 @@ def plot_cluster_spatial_distribution(embeddings, x, y, save_path, n_clusters=50
     ax.axis("equal")
     plt.savefig(save_path, dpi=300, bbox_inches='tight')
     plt.close()
-    print(f"[INFO] Saved cluster plot: {save_path}")
+    # print(f"[INFO] Saved cluster plot: {save_path}")

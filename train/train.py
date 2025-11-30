@@ -23,7 +23,7 @@ def extract_embeddings(model, dataset, batch_size=512):
     loader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
     embeddings = []
     with torch.no_grad():
-        for anchor, _, _, _, _, _ in tqdm(loader, desc="Embeddings", leave=False):
+        for anchor, _, _, _, _, _ in tqdm(loader, desc="Extracting embeddings", leave=False):
             emb = model(anchor.to(model.device)).cpu().numpy()
             embeddings.append(emb)
     return np.vstack(embeddings)
@@ -97,7 +97,7 @@ def run_visualization(model, epoch, config, run_dir, map_image_path, val_ds):
     cluster_path = os.path.join(cluster_dir, f"epoch_{epoch}.png")
     plot_clusters_grid(cluster_results, save_path=cluster_path)
 
-    print(f"[INFO] Epoch {epoch}/{config.num_epochs} Visualization Complete. Plots saved to {emb_map_dir} and related folders.")
+    # print(f"[INFO] Epoch {epoch}/{config.num_epochs} Visualization Complete. Plots saved to {emb_map_dir} and related folders.")
 
 
 def train(config):
@@ -194,6 +194,8 @@ def train(config):
 
         train_losses.append(train_loss)
         val_losses.append(val_loss)
+        
+        tqdm.write(f"Epoch {epoch+1}/{config.num_epochs} - Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}")
 
         if val_loss < best_val:
             best_val = val_loss
@@ -252,3 +254,4 @@ def train(config):
     print(f"[INFO] Final embeddings saved: {final_emb_path}")
 
     print(f"\nTraining complete! Results in: {run_dir}")
+    print(f"Best validation loss: {best_val:.4f}")
