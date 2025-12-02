@@ -32,6 +32,8 @@ def run_collection():
         return
 
     env = SimpleRobotEnv(MAP_PATH, max_steps=MAX_EPISODE_STEPS)
+
+    render = False  # Set to True to visualize during collection
     
     # 2. Header Definition
     # step, strategy, action, run_start, run_length, ray_0...ray_99, episode, reward, x, y, orientation
@@ -71,7 +73,8 @@ def run_collection():
         
         # --- Execution ---
         obs, reward, done, _ = env.step(current_action)
-        env.render() # Optional visualization
+        if render:
+            env.render() # Optional visualization
         
         # --- Data Recording ---
         
@@ -106,13 +109,13 @@ def run_collection():
             file_path = os.path.join(out_dir, f"log_{file_index}.csv")
             df = pd.DataFrame(buffer, columns=header)
             df.to_csv(file_path, index=False)
-            print(f"Saved {len(buffer)} steps to {file_path}")
             
             buffer = []
             file_index += 1
             
         # --- Episode Reset ---
         if done:
+            print(f"Episode {env.episode} finished after {env.step_count} steps.")
             obs = env.reset()
             # We do NOT reset global_step, as that tracks total dataset size
             # We strictly might reset the run logic if we want a fresh run per episode,

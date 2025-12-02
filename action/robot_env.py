@@ -15,7 +15,6 @@ class SimpleRobotEnv:
             raise ValueError("Failed to load map image.")
             
         # 2. Process Map (0=Free, 1=Obstacle)
-        # Using the same threshold logic as original robot_env (binary inverted)
         _, self.binary_map = cv2.threshold(self.map_img, 127, 1, cv2.THRESH_BINARY_INV)
         self.h, self.w = self.binary_map.shape
         self.obstacle_map = self.binary_map 
@@ -29,13 +28,16 @@ class SimpleRobotEnv:
         self.episode = 0
         
         # Robot State
-        self.x = 0.0
-        self.y = 0.0
-        self.angle = 0.0
+        self.initial_robot_x, self.initial_robot_y, self.initial_robot_angle = 50, 65, np.pi/4 # Fixed start
+        self.x = self.initial_robot_x
+        self.y = self.initial_robot_y 
+        self.angle = self.initial_robot_angle
         
-        # Goal State
-        self.goal_x = 0.0
-        self.goal_y = 0.0
+        # Goal State (Fixed for all episodes)
+        self.initial_goal_x, self.initial_goal_y = 70, 10
+        self.goal_x = self.initial_goal_x
+        self.goal_y = self.initial_goal_y
+        # self._spawn_goal()
         
         # Constants & Config
         self.SPEED = 5.0
@@ -43,8 +45,9 @@ class SimpleRobotEnv:
         self.num_rays = 100
         self.ray_length = 200
         
-        # Lidar Angles (Original FOV: -45 to +45)
+        # Lidar Angles
         self.lidar_angles = np.linspace(-45, 45, self.num_rays)
+        self.last_intersections = []
         
         # Exploration Grid (-1=unexplored, 0=free, 1=obstacle)
         self.exploration_grid = None
@@ -53,15 +56,8 @@ class SimpleRobotEnv:
         self.screen = None
         self.clock = None
 
-    def reset(self):
-        """Resets the robot, goal, and exploration grid."""
-        self.step_count = 0
-        self.episode += 1
-        
-        # Initialize exploration grid
-        self.exploration_grid = np.full((self.w, self.h), -1, dtype=int)
-        
-        # 1. Spawn Goal
+    def _spawn_goal(self):
+        """Spawns the goal at a random valid location once."""
         while True:
             gx = np.random.randint(self.goal_radius, self.w - self.goal_radius)
             gy = np.random.randint(self.goal_radius, self.h - self.goal_radius)
@@ -70,22 +66,33 @@ class SimpleRobotEnv:
                 self.goal_y = float(gy)
                 break
 
-        # 2. Spawn Robot
-        while True:
-            rx = np.random.randint(self.robot_radius, self.w - self.robot_radius)
-            ry = np.random.randint(self.robot_radius, self.h - self.robot_radius)
-            if self._is_clear(rx, ry, self.robot_radius):
-                # Check distance to goal
-                dist = math.hypot(rx - self.goal_x, ry - self.goal_y)
-                if dist > (self.robot_radius + self.goal_radius + 5):
-                    self.x = float(rx)
-                    self.y = float(ry)
-                    break
+    def reset(self):
+        """Resets the robot and exploration grid. Goal remains fixed."""
+        self.step_count = 0
+        self.episode += 1
+        
+        # Initialize exploration grid
+        self.exploration_grid = np.full((self.w, self.h), -1, dtype=int)
+        
+        # # Spawn Robot (ensure it doesn't spawn too close to the fixed goal)
+        # while True:
+        #     rx = np.random.randint(self.robot_radius, self.w - self.robot_radius)
+        #     ry = np.random.randint(self.robot_radius, self.h - self.robot_radius)
+        #     if self._is_clear(rx, ry, self.robot_radius):
+        #         # Check distance to fixed goal
+        #         dist = math.hypot(rx - self.goal_x, ry - self.goal_y)
+        #         if dist > (self.robot_radius + self.goal_radius + 20):
+        #             self.x = float(rx)
+        #             self.y = float(ry)
+        #             break
                 
-        self.angle = np.random.uniform(0, 360)
+        # self.angle = np.random.uniform(0, 360)
+
+        self.x, self.y, self.angle = self.initial_robot_x, self.initial_robot_y, self.initial_robot_angle
         
         # Initial Lidar Update
         intersections, _ = self._update_map()
+        self.last_intersections = intersections
         return self._get_observation(intersections)
 
     def step(self, action):
@@ -110,14 +117,21 @@ class SimpleRobotEnv:
             
         # Update Map & Get Lidar
         intersections, new_cells = self._update_map()
+        self.last_intersections = intersections
         obs = self._get_observation(intersections)
         
-        # Reward
+        # Reward & Done
         dist_to_goal = math.hypot(self.x - self.goal_x, self.y - self.goal_y)
-        touch_threshold = self.robot_radius + self.goal_radius
-        reward = 1.0 if dist_to_goal < touch_threshold else 0.0
+        touch_threshold = self.robot_radius + self.goal_radius + 4 # Slight buffer
         
-        done = self.step_count >= self.max_steps
+        reward = 0.0
+        done = False
+        
+        if dist_to_goal < touch_threshold:
+            reward = 1.0
+            done = True # Reset on touch
+        elif self.step_count >= self.max_steps:
+            done = True
         
         return obs, reward, done, {}
 
@@ -262,6 +276,7 @@ class SimpleRobotEnv:
         
         self._draw_map()
         self._draw_entities()
+        self._draw_lidar()
         
         pygame.display.flip()
         self.clock.tick(60)
@@ -278,30 +293,19 @@ class SimpleRobotEnv:
         self.screen.blit(base_surf, (0, 0))
         
         # Draw Exploration Grid
-        # Create a semi-transparent surface
         overlay = pygame.Surface((self.w, self.h), pygame.SRCALPHA)
-        
-        # We manipulate pixels directly to avoid array shape issues with blit_array
-        # Reference the 3d pixel array (RGB) and 2d alpha array
         rgb_ref = pygame.surfarray.pixels3d(overlay)
         alpha_ref = pygame.surfarray.pixels_alpha(overlay)
         
-        # Masks from exploration grid (w, h)
         free_mask = (self.exploration_grid == 0)
         obs_mask = (self.exploration_grid == 1)
         
-        # Set colors (Green for free, Red for obstacle)
-        # Note: We must assign to the slice to modify in-place
-        
-        # Green for free space
         rgb_ref[free_mask] = [0, 255, 0]
         alpha_ref[free_mask] = 100
         
-        # Red for obstacles
         rgb_ref[obs_mask] = [255, 0, 0]
         alpha_ref[obs_mask] = 100
         
-        # Unlock the surface by deleting array references
         del rgb_ref
         del alpha_ref
         
@@ -310,11 +314,29 @@ class SimpleRobotEnv:
     def _draw_entities(self):
         # Goal (Blue Blob)
         pygame.draw.circle(self.screen, (0, 0, 255), (int(self.goal_x), int(self.goal_y)), self.goal_radius)
-        
         # Robot (Yellow Circle)
         pygame.draw.circle(self.screen, (255, 255, 0), (int(self.x), int(self.y)), self.robot_radius)
-        
         # Heading Line
         end_x = self.x + 15 * np.cos(np.radians(self.angle))
         end_y = self.y + 15 * np.sin(np.radians(self.angle))
         pygame.draw.line(self.screen, (0, 0, 0), (self.x, self.y), (end_x, end_y), 2)
+
+    def _draw_lidar(self):
+        # Re-calculate ray ends for visualization if needed, or use intersections
+        angles = self.angle + self.lidar_angles
+        
+        for i, angle_deg in enumerate(angles):
+            # Check if we had a hit
+            intersection = self.last_intersections[i] if i < len(self.last_intersections) else None
+            
+            if intersection:
+                end_pos = intersection
+            else:
+                # Calculate max range end point
+                angle_rad = np.radians(angle_deg)
+                end_x = self.x + self.ray_length * np.cos(angle_rad)
+                end_y = self.y + self.ray_length * np.sin(angle_rad)
+                end_pos = (end_x, end_y)
+            
+            # Draw Ray
+            pygame.draw.line(self.screen, (0, 255, 255), (self.x, self.y), end_pos, 1)
