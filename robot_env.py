@@ -404,8 +404,6 @@ class RobotExplorationEnv:
 
 
     def _draw_map(self):
-        """Simple drawing that shows exploration progress"""
-        # Draw base map
         base_surface = pygame.surfarray.make_surface(np.transpose(
             np.stack([self.map_image] * 3, axis=-1), (1, 0, 2)
         ))
