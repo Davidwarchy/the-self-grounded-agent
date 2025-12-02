@@ -3,6 +3,48 @@ import cv2
 import pygame
 import os
 import math
+from numba import njit
+
+@njit 
+def _bresenham_line(x0, y0, x1, y1):
+    """
+    Bresenham's line algorithm for efficient pixel traversal.
+
+    :param x0: Start x
+    :param y0: Start y
+    :param x1: End x
+    :param y1: End y    
+
+    :return: List of (x, y) points along the line
+    """
+    points = []
+    dx = abs(x1 - x0)
+    dy = abs(y1 - y0)
+    x, y = x0, y0
+    sx = 1 if x0 < x1 else -1
+    sy = 1 if y0 < y1 else -1
+    
+    if dx > dy:
+        err = dx / 2.0
+        while x != x1:
+            points.append((x, y))
+            err -= dy
+            if err < 0:
+                y += sy
+                err += dx
+            x += sx
+    else:
+        err = dy / 2.0
+        while y != y1:
+            points.append((x, y))
+            err -= dx
+            if err < 0:
+                x += sx
+                err += dy
+            y += sy
+    
+    points.append((x, y))
+    return points
 
 class SimpleRobotEnv:
     def __init__(self, map_path, max_steps=1000, robot_radius=3, goal_radius=10, render_mode=False):
@@ -67,6 +109,21 @@ class SimpleRobotEnv:
                 self.goal_y = float(gy)
                 break
 
+    def _spawn_robot(self):
+        """Spawns the robot at a random valid location. But not near the goal."""
+        while True:
+            rx = np.random.randint(self.robot_radius, self.w - self.robot_radius)
+            ry = np.random.randint(self.robot_radius, self.h - self.robot_radius)
+            if self._is_clear(rx, ry, self.robot_radius):
+                # Check distance to goal
+                dist = math.hypot(rx - self.goal_x, ry - self.goal_y)
+                if dist > (self.robot_radius + self.goal_radius + 20):
+                    self.x = float(rx)
+                    self.y = float(ry)
+                    break
+                
+        self.angle = np.random.uniform(0, 360)
+
     def reset(self):
         """Resets the robot and exploration grid. Goal remains fixed."""
         self.step_count = 0
@@ -76,18 +133,7 @@ class SimpleRobotEnv:
         self.exploration_grid = np.full((self.w, self.h), -1, dtype=int)
         
         # # Spawn Robot (ensure it doesn't spawn too close to the fixed goal)
-        # while True:
-        #     rx = np.random.randint(self.robot_radius, self.w - self.robot_radius)
-        #     ry = np.random.randint(self.robot_radius, self.h - self.robot_radius)
-        #     if self._is_clear(rx, ry, self.robot_radius):
-        #         # Check distance to fixed goal
-        #         dist = math.hypot(rx - self.goal_x, ry - self.goal_y)
-        #         if dist > (self.robot_radius + self.goal_radius + 20):
-        #             self.x = float(rx)
-        #             self.y = float(ry)
-        #             break
-                
-        # self.angle = np.random.uniform(0, 360)
+        # self._spawn_robot()
 
         self.x, self.y, self.angle = self.initial_robot_x, self.initial_robot_y, self.initial_robot_angle
         
@@ -138,37 +184,6 @@ class SimpleRobotEnv:
 
     # --- Original Robot Env Logic (Mapping & Simulation) ---
 
-    def _bresenham_line(self, x0, y0, x1, y1):
-        """Bresenham's line algorithm for efficient pixel traversal."""
-        points = []
-        dx = abs(x1 - x0)
-        dy = abs(y1 - y0)
-        x, y = x0, y0
-        sx = 1 if x0 < x1 else -1
-        sy = 1 if y0 < y1 else -1
-        
-        if dx > dy:
-            err = dx / 2.0
-            while x != x1:
-                points.append((x, y))
-                err -= dy
-                if err < 0:
-                    y += sy
-                    err += dx
-                x += sx
-        else:
-            err = dy / 2.0
-            while y != y1:
-                points.append((x, y))
-                err -= dx
-                if err < 0:
-                    x += sx
-                    err += dy
-                y += sy
-        
-        points.append((x, y))
-        return points
-
     def cast_lidar_rays_optimized(self, robot_x, robot_y, orientation):
         """Optimized LIDAR using Bresenham's line algorithm."""
         intersections = []
@@ -179,7 +194,7 @@ class SimpleRobotEnv:
             end_x = int(robot_x + self.ray_length * np.cos(angle_rad))
             end_y = int(robot_y + self.ray_length * np.sin(angle_rad))
             
-            line_points = self._bresenham_line(int(robot_x), int(robot_y), end_x, end_y)
+            line_points = _bresenham_line(int(robot_x), int(robot_y), end_x, end_y)
             
             closest_intersection = None
             for point in line_points:
@@ -209,7 +224,7 @@ class SimpleRobotEnv:
                 ox, oy = int(inter[0]), int(inter[1])
 
                 # Free path up to obstacle
-                line_points = self._bresenham_line(int(self.x), int(self.y), ox, oy)
+                line_points = _bresenham_line(int(self.x), int(self.y), ox, oy)
                 for px, py in line_points[:-1]:
                     if (0 <= px < self.w and 0 <= py < self.h and
                         self.exploration_grid[px, py] == -1):
@@ -226,7 +241,7 @@ class SimpleRobotEnv:
                 # No obstacle hit -> mark full ray as free
                 end_x = int(self.x + self.ray_length * np.cos(angle_rad))
                 end_y = int(self.y + self.ray_length * np.sin(angle_rad))
-                line_points = self._bresenham_line(int(self.x), int(self.y), end_x, end_y)
+                line_points = _bresenham_line(int(self.x), int(self.y), end_x, end_y)
 
                 for px, py in line_points:
                     if (0 <= px < self.w and 0 <= py < self.h and
@@ -237,6 +252,13 @@ class SimpleRobotEnv:
         return intersections, new_cells
 
     def _get_observation(self, intersections):
+        """
+        Gets distance readings from x,y intersections
+        
+        :param self: instance of SimpleRobotEnv class
+        :param intersections: (x,y) coordinates of ray intersections or None
+        :return: Numpy array of distances for each ray 
+        """
         distances = []
         for inter in intersections:
             if inter:

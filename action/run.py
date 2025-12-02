@@ -8,7 +8,7 @@ from robot_env import SimpleRobotEnv
 
 # --- Configuration ---
 MAP_PATH = "environments/images/6.png" # Adjust if your map is elsewhere
-TOTAL_STEPS = 500000        # Total frames to record across all episodes
+TOTAL_STEPS = 1_000_000        # Total frames to record across all episodes
 MAX_EPISODE_STEPS = 1000   # Reset env after this many steps
 MIN_RUN_LENGTH = 1         # Min steps to hold an action
 MAX_RUN_LENGTH = 30        # Max steps to hold an action
@@ -106,7 +106,7 @@ def run_collection():
         
         # --- Flushing to Disk ---
         if len(buffer) >= buffer_size:
-            file_path = os.path.join(out_dir, f"log_{file_index}.csv")
+            file_path = os.path.join(out_dir, f"log_{global_step:06d}.csv")
             df = pd.DataFrame(buffer, columns=header)
             df.to_csv(file_path, index=False)
             
@@ -124,7 +124,7 @@ def run_collection():
 
     # 4. Final Flush
     if buffer:
-        file_path = os.path.join(out_dir, f"log_{file_index}.csv")
+        file_path = os.path.join(out_dir, f"log_{global_step:06d}.csv")
         df = pd.DataFrame(buffer, columns=header)
         df.to_csv(file_path, index=False)
         print(f"Saved final {len(buffer)} steps to {file_path}")
