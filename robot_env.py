@@ -11,7 +11,6 @@ import json
 class RobotExplorationEnv:
     def __init__(self,
                  map_image_path,
-                 # ← remove the fixed defaults
                  grid_width=None, grid_height=None,
                  scale=2, fps=10,
                  robot_radius=5, num_rays=100, ray_length=200,
@@ -32,11 +31,11 @@ class RobotExplorationEnv:
         # ------------------------------------------------------------------
         # 2. Derive grid size from the image (user can still override)
         # ------------------------------------------------------------------
-        img_h, img_w = self.map_image.shape                     # height × width
+        img_h, img_w = self.map_image.shape
         self.grid_width  = grid_width  if grid_width  is not None else img_w
         self.grid_height = grid_height if grid_height is not None else img_h
 
-        # Resize **only if the caller forced a different size**
+        # Resize if needed
         if self.map_image.shape[1] != self.grid_width or self.map_image.shape[0] != self.grid_height:
             self.map_image = cv2.resize(self.map_image,
                                         (self.grid_width, self.grid_height),
@@ -49,7 +48,7 @@ class RobotExplorationEnv:
                                              127, 1, cv2.THRESH_BINARY_INV)
 
         # ------------------------------------------------------------------
-        # 4. The rest of the original init stays unchanged
+        # 4. Parameters
         # ------------------------------------------------------------------
         self.map_height, self.map_width = self.map_image.shape   # now = grid size
         self.scale = scale
@@ -84,6 +83,9 @@ class RobotExplorationEnv:
         self.strategy_name = strategy_name
         self.strategy_parameters = strategy_parameters or {}
         
+        # Episode Tracking
+        self.episode = 0
+
         # Output
         timestamp = datetime.now().strftime("%Y-%m-%d-%H%M%S")
         self.output_dir = output_dir or os.path.join("output", f"{timestamp}_{strategy_name}")
@@ -126,6 +128,9 @@ class RobotExplorationEnv:
         self.robot_x, self.robot_y = self._find_free_position(center_x, center_y)
         self.robot_orientation = 0
         self.current_step = 0
+        
+        # Increment episode count
+        self.episode += 1
 
         # Initialize exploration grid
         self.exploration_grid = np.full((self.grid_width, self.grid_height), -1, dtype=int) 
@@ -160,9 +165,18 @@ class RobotExplorationEnv:
                             return False
         return True
 
-    def step(self, action):
+    def _calculate_reward(self):
+        """
+        Base reward function. Override in subclasses (e.g. BlobEnv) for RL.
+        """
+        return 0.0
+
+    def step(self, action, extra_info=None):
         if not 0 <= action <= 3:
             raise ValueError("Action must be 0-3")
+        
+        if extra_info is None:
+            extra_info = {}
         
         # Map action to left/right wheel velocities
         if action == 0:  # up
@@ -187,17 +201,37 @@ class RobotExplorationEnv:
         # Get observation
         obs = self._get_observation(intersections)
 
+        # Calculate Reward
+        reward = self._calculate_reward()
+
         # Log data
         lidar_distances = [sqrt((inter[0] - self.robot_x)**2 + (inter[1] - self.robot_y)**2) if inter else self.ray_length
                         for inter in intersections]
-        row = [self.current_step, action] + lidar_distances + [self.robot_x, self.robot_y, self.robot_orientation]
+        
+        # Row Order: step, strategy, action, run_start, run_length, [lidar], episode, reward, x, y, orientation
+        row = [
+            self.current_step,
+            self.strategy_name,
+            action,
+            extra_info.get('run_start', ''),
+            extra_info.get('run_length', '')
+        ] + lidar_distances + [
+            self.episode,
+            reward,
+            self.robot_x, 
+            self.robot_y, 
+            self.robot_orientation
+        ]
         
         self.log_buffer.append(row)
 
         # Save when buffer reaches 100 steps
         if len(self.log_buffer) == 100:
             intermediate_path = os.path.join(self.output_dir, f"log_{self.current_step + 1}.csv")
-            header = ['step', 'action'] + [f'ray_{i}' for i in range(self.num_rays)] + ['x', 'y', 'orientation']
+            header = ['step', 'strategy', 'action', 'run_start', 'run_length'] + \
+                     [f'ray_{i}' for i in range(self.num_rays)] + \
+                     ['episode', 'reward', 'x', 'y', 'orientation']
+                     
             with open(intermediate_path, 'w', newline='') as f:
                 writer = csv.writer(f)
                 writer.writerow(header)
@@ -206,8 +240,8 @@ class RobotExplorationEnv:
 
         self.current_step += 1
         done = self.current_step >= self.max_steps
-        info = {"new_cells": new_cells, "coverage": self._get_coverage(), "action": action}
-        return obs, new_cells, done, info
+        info = {"new_cells": new_cells, "coverage": self._get_coverage(), "action": action, "reward": reward}
+        return obs, reward, done, info
 
     def render(self):
         if not self.render_flag:
@@ -232,7 +266,9 @@ class RobotExplorationEnv:
         # Save any remaining steps in the buffer
         if self.log_buffer:
             final_path = os.path.join(self.output_dir, f"log_{self.current_step}.csv")
-            header = ['step', 'action'] + [f'ray_{i}' for i in range(self.num_rays)] + ['x', 'y', 'orientation']
+            header = ['step', 'strategy', 'action', 'run_start', 'run_length'] + \
+                     [f'ray_{i}' for i in range(self.num_rays)] + \
+                     ['episode', 'reward', 'x', 'y', 'orientation']
             with open(final_path, 'w', newline='') as f:
                 writer = csv.writer(f)
                 writer.writerow(header)
@@ -404,6 +440,8 @@ class RobotExplorationEnv:
 
 
     def _draw_map(self):
+        """Simple drawing that shows exploration progress"""
+        # Draw base map
         base_surface = pygame.surfarray.make_surface(np.transpose(
             np.stack([self.map_image] * 3, axis=-1), (1, 0, 2)
         ))

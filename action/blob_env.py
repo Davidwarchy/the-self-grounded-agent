@@ -40,6 +40,23 @@ class FixedBlobEnv(RobotExplorationEnv):
         cv2.circle(self.obstacle_map, (self.goal_x, self.goal_y), self.blob_radius, 1, -1)
         return self._get_observation()
 
+    def _calculate_reward(self):
+        """
+        Calculates the immediate reward for the current state.
+        This overrides the base environment's method.
+        """
+        dist = math.hypot(self.goal_x - self.robot_x, self.goal_y - self.robot_y)
+        threshold = self.robot_radius + self.blob_radius + 4.0
+        
+        # Time step penalty
+        reward = -0.01
+        
+        # Check Touch
+        if dist < threshold:
+            reward += 10.0
+            
+        return reward
+
     def step(self, action_tuple):
         """
         action_tuple: (direction_index, duration_index)
@@ -54,18 +71,21 @@ class FixedBlobEnv(RobotExplorationEnv):
         dist = 0
         
         for _ in range(steps_to_take):
-            obs, _, _, _ = super().step(direction)
+            # Calling super().step() will internally call self._calculate_reward() 
+            # and log the reward, step, action, etc.
+            obs, reward, done, _ = super().step(direction)
             
-            # Slightly higher penalty per step to encourage efficiency
-            total_reward -= 0.01
+            total_reward += reward
             
-            # Check Touch
+            # Check if we reached goal (reward > 0 implies goal hit based on _calculate_reward logic)
+            # Or re-check done condition explicitly if needed
             dist = math.hypot(self.goal_x - self.robot_x, self.goal_y - self.robot_y)
             threshold = self.robot_radius + self.blob_radius + 4.0
-            
             if dist < threshold:
-                total_reward += 10.0
                 done = True
+                break
+            
+            if done: # If max steps reached
                 break
         
         next_obs = obs / self.ray_length

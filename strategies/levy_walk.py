@@ -33,13 +33,22 @@ class LevyWalkStrategy(BaseStrategy):
         current_direction = random.randint(0, 3)
 
         while not done:
+            extra_info = {}
+
             # Start a new run if finished the last one
             if current_run_length <= 0:
                 current_direction = random.randint(0, 3)
                 current_run_length = self._sample_truncated_pareto()
+                
+                # Store run start info
+                extra_info['run_start'] = 1
+                extra_info['run_length'] = current_run_length
+            else:
+                extra_info['run_start'] = 0
+                extra_info['run_length'] = 0
 
-            # Step environment
-            obs, reward, done, info = env.step(current_direction)
+            # Step environment with extra info
+            obs, reward, done, info = env.step(current_direction, extra_info=extra_info)
 
             # Render environment if needed
             if env.render_flag:

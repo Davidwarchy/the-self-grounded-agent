@@ -1,4 +1,3 @@
-# strategies/uniform_runlength.py
 import random
 import asyncio
 import numpy as np
@@ -33,13 +32,22 @@ class UniformRunLengthStrategy(BaseStrategy):
         current_direction = random.randint(0, 3)
 
         while not done:
+            extra_info = {}
+
             # Start a new run if finished the last one
             if current_run_length <= 0:
                 current_direction = random.randint(0, 3)
                 current_run_length = self._sample_uniform_runlength()
+                
+                # Store run start info
+                extra_info['run_start'] = 1
+                extra_info['run_length'] = current_run_length
+            else:
+                extra_info['run_start'] = 0
+                extra_info['run_length'] = 0
 
             # Step environment (action is direction 0..3)
-            obs, reward, done, info = env.step(current_direction)
+            obs, reward, done, info = env.step(current_direction, extra_info=extra_info)
 
             # Render if requested
             if env.render_flag:

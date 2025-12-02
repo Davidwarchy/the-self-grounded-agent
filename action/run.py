@@ -2,8 +2,8 @@ import torch
 import pygame
 import os
 import time
-from blob_env import FixedBlobEnv
-from model import MultiHeadActorCritic
+from .blob_env import FixedBlobEnv
+from .model import MultiHeadActorCritic
 
 EPISODES = 100
 def run():
@@ -45,3 +45,4 @@ def run():
 
 if __name__ == "__main__":
     run()
+    # python -m action.run
