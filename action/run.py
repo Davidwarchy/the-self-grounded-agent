@@ -41,7 +41,7 @@ def run():
             
             state, reward, done, _ = env.step((dir_idx, time_idx))
             
-        print(f"Goal Reached. Steps taken: {env.total_steps}, Reward: {reward:.2f}")
+        print(f"Goal Reached. Steps taken: {env.current_step}, Reward: {reward:.2f}")
 
 if __name__ == "__main__":
     run()
