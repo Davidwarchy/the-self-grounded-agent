@@ -9,7 +9,7 @@ episode (what episode we are in)
 reward (option to pass a reward in the action module)
 x
 y 
-z 
+orientation
 
 for each row: the step is step i, the action is the action taken at step i, the lidar readings at step i are the readings after action i, the reward is after taking action i... x,y,orientation aslo after action
 
