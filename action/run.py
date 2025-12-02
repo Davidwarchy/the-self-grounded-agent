@@ -31,9 +31,8 @@ def run_collection():
         print("Please ensure 'environments/images/6.png' exists or update MAP_PATH.")
         return
 
-    env = SimpleRobotEnv(MAP_PATH, max_steps=MAX_EPISODE_STEPS)
-
-    render = False  # Set to True to visualize during collection
+    render_sim = False  # Set to True to visualize during collection
+    env = SimpleRobotEnv(MAP_PATH, max_steps=MAX_EPISODE_STEPS, render_mode=render_sim)
     
     # 2. Header Definition
     # step, strategy, action, run_start, run_length, ray_0...ray_99, episode, reward, x, y, orientation
@@ -73,7 +72,8 @@ def run_collection():
         
         # --- Execution ---
         obs, reward, done, _ = env.step(current_action)
-        if render:
+        
+        if render_sim:
             env.render() # Optional visualization
         
         # --- Data Recording ---

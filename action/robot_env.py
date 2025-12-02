@@ -5,7 +5,7 @@ import os
 import math
 
 class SimpleRobotEnv:
-    def __init__(self, map_path, max_steps=1000, robot_radius=3, goal_radius=10):
+    def __init__(self, map_path, max_steps=1000, robot_radius=3, goal_radius=10, render_mode=False):
         # 1. Load Map
         if not os.path.exists(map_path):
             raise FileNotFoundError(f"Map not found at: {map_path}")
@@ -23,6 +23,7 @@ class SimpleRobotEnv:
         self.max_steps = max_steps
         self.robot_radius = robot_radius
         self.goal_radius = goal_radius
+        self.render_mode = render_mode
         
         self.step_count = 0
         self.episode = 0
@@ -268,6 +269,10 @@ class SimpleRobotEnv:
     # --- Rendering ---
 
     def render(self):
+        # Prevent pygame initialization if rendering is disabled
+        if not self.render_mode:
+            return False
+
         if self.screen is None:
             pygame.init()
             self.screen = pygame.display.set_mode((self.w, self.h))
