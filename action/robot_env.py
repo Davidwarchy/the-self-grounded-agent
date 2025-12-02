@@ -5,17 +5,20 @@ import os
 import math
 from numba import njit
 
-@njit 
-def _bresenham_line(x0, y0, x1, y1):
+# ==========================================
+# 1. GEOMETRY: Get points on a line
+# ==========================================
+@njit
+def bresenham_line(x0, y0, x1, y1):
     """
     Bresenham's line algorithm for efficient pixel traversal.
-
-    :param x0: Start x
-    :param y0: Start y
-    :param x1: End x
-    :param y1: End y    
-
-    :return: List of (x, y) points along the line
+    Returns a list of (x, y) coordinates connecting the two points.
+    
+    :param x0: Start x coordinate
+    :param y0: Start y coordinate
+    :param x1: End x coordinate
+    :param y1: End y coordinate
+    :return: List of (x, y) tuples
     """
     points = []
     dx = abs(x1 - x0)
@@ -46,6 +49,144 @@ def _bresenham_line(x0, y0, x1, y1):
     points.append((x, y))
     return points
 
+# ==========================================
+# 2. INTERSECTIONS: Find where rays hit walls
+# ==========================================
+@njit
+def get_ray_intersections(x, y, angle, lidar_angles, max_range, map_data, width, height):
+    """
+    Casts rays from the robot's position and finds wall intersections.
+    
+    :param x: Robot x position
+    :param y: Robot y position
+    :param angle: Robot orientation (degrees)
+    :param lidar_angles: Array of relative angles for the rays
+    :param max_range: Maximum length of the rays
+    :param map_data: The binary map (1=obstacle, 0=free)
+    :param width: Map width
+    :param height: Map height
+    :return: Numpy array of shape (N, 2) containing (x,y) hits. 
+             If no hit, contains (-1, -1).
+    """
+    num_rays = len(lidar_angles)
+    # Initialize with -1 to represent "no hit"
+    hits = np.full((num_rays, 2), -1, dtype=np.int32)
+    
+    # Pre-calculate all ray angles in radians
+    ray_angles = np.radians(angle + lidar_angles)
+    
+    for i in range(num_rays):
+        ray_angle = ray_angles[i]
+        
+        # Calculate theoretical end of ray (max range)
+        end_x = int(x + max_range * np.cos(ray_angle))
+        end_y = int(y + max_range * np.sin(ray_angle))
+        
+        # 1. Get Geometry (Bresenham)
+        line_points = bresenham_line(int(x), int(y), end_x, end_y)
+        
+        # 2. Check for Obstacles along the line
+        for point in line_points:
+            px, py = point
+            
+            # Check map bounds
+            if not (0 <= px < width and 0 <= py < height):
+                break
+            
+            # Check Obstacle (1 is wall)
+            if map_data[py, px] == 1:
+                hits[i][0] = px
+                hits[i][1] = py
+                break # Stop at first wall hit
+                
+    return hits
+
+# ==========================================
+# 3. DISTANCES: Convert hits to scalar readings
+# ==========================================
+@njit
+def get_ray_distances(x, y, intersections, max_range):
+    """
+    Converts intersection coordinates into scalar distances for the agent.
+    
+    :param x: Robot x position
+    :param y: Robot y position
+    :param intersections: Array of (N, 2) hit points. (-1,-1) means max range.
+    :param max_range: Value to use if no intersection occurred.
+    :return: Numpy array of float distances.
+    """
+    num_rays = len(intersections)
+    distances = np.zeros(num_rays, dtype=np.float32)
+    
+    for i in range(num_rays):
+        ix, iy = intersections[i]
+        
+        if ix == -1: 
+            # No hit -> Max Range
+            distances[i] = max_range
+        else:
+            # Hit -> Calculate Euclidean distance
+            dist = math.sqrt((ix - x)**2 + (iy - y)**2)
+            distances[i] = dist
+            
+    return distances
+
+# ==========================================
+# 4. MAP UPDATE: Fog of War logic
+# ==========================================
+@njit
+def update_exploration_grid_fast(x, y, angle, lidar_angles, intersections, ray_length, grid, width, height):
+    """
+    Updates the exploration grid based on ray hits.
+    Marks cells along the ray as 0 (Free) and hit points as 1 (Obstacle).
+    
+    :return: Count of newly explored cells
+    """
+    new_cells = 0
+    num_rays = len(lidar_angles)
+    ray_angles = np.radians(angle + lidar_angles)
+    
+    for i in range(num_rays):
+        ix, iy = intersections[i]
+        
+        # Determine the target point for the "clear" line
+        # If we hit a wall, clear up to the wall. 
+        # If we didn't, clear up to max range.
+        if ix != -1:
+            target_x, target_y = ix, iy
+        else:
+            target_x = int(x + ray_length * np.cos(ray_angles[i]))
+            target_y = int(y + ray_length * np.sin(ray_angles[i]))
+
+        # Get the full line of pixels
+        line_points = bresenham_line(int(x), int(y), target_x, target_y)
+        
+        # 1. Mark Free Space (all points except the very last one if it's a hit)
+        # We iterate all points. If it's the hit point, we handle it separately below.
+        for point in line_points:
+            px, py = point
+            
+            # Bounds check
+            if 0 <= px < width and 0 <= py < height:
+                
+                # If this is the obstacle hit point, skip marking it as free
+                if px == ix and py == iy:
+                    continue
+                
+                # If unexplored (-1), mark as free (0)
+                if grid[px, py] == -1:
+                    grid[px, py] = 0
+                    new_cells += 1
+        
+        # 2. Mark Obstacle (only if we actually hit something)
+        if ix != -1:
+            if 0 <= ix < width and 0 <= iy < height:
+                if grid[ix, iy] == -1:
+                    grid[ix, iy] = 1
+                    new_cells += 1
+                    
+    return new_cells
+
 class SimpleRobotEnv:
     def __init__(self, map_path, max_steps=1000, robot_radius=3, goal_radius=10, render_mode=False):
         # 1. Load Map
@@ -59,7 +200,7 @@ class SimpleRobotEnv:
         # 2. Process Map (0=Free, 1=Obstacle)
         _, self.binary_map = cv2.threshold(self.map_img, 127, 1, cv2.THRESH_BINARY_INV)
         self.h, self.w = self.binary_map.shape
-        self.obstacle_map = self.binary_map 
+        self.obstacle_map = self.binary_map.astype(np.int32) # Ensure int32 for Numba
         
         # 3. Parameters
         self.max_steps = max_steps
@@ -90,7 +231,7 @@ class SimpleRobotEnv:
         
         # Lidar Angles
         self.lidar_angles = np.linspace(-45, 45, self.num_rays)
-        self.last_intersections = []
+        self.last_intersections = None # Will store (N, 2) array
         
         # Exploration Grid (-1=unexplored, 0=free, 1=obstacle)
         self.exploration_grid = None
@@ -130,16 +271,25 @@ class SimpleRobotEnv:
         self.episode += 1
         
         # Initialize exploration grid
-        self.exploration_grid = np.full((self.w, self.h), -1, dtype=int)
+        self.exploration_grid = np.full((self.w, self.h), -1, dtype=np.int32)
         
         # # Spawn Robot (ensure it doesn't spawn too close to the fixed goal)
         # self._spawn_robot()
 
         self.x, self.y, self.angle = self.initial_robot_x, self.initial_robot_y, self.initial_robot_angle
         
-        # Initial Lidar Update
-        intersections, _ = self._update_map()
+        # Initial Lidar Update (Physics)
+        intersections = get_ray_intersections(
+            self.x, self.y, self.angle, 
+            self.lidar_angles, self.ray_length, 
+            self.obstacle_map, self.w, self.h
+        )
         self.last_intersections = intersections
+        
+        # Update Visualization only if needed
+        if self.render_mode:
+            self._update_exploration_grid(intersections)
+        
         return self._get_observation(intersections)
 
     def step(self, action):
@@ -162,9 +312,19 @@ class SimpleRobotEnv:
         if not self._is_clear(self.x, self.y, self.robot_radius):
             self.x, self.y = prev_x, prev_y
             
-        # Update Map & Get Lidar
-        intersections, new_cells = self._update_map()
+        # 1. Physics: Get Lidar Intersections
+        intersections = get_ray_intersections(
+            self.x, self.y, self.angle, 
+            self.lidar_angles, self.ray_length, 
+            self.obstacle_map, self.w, self.h
+        )
         self.last_intersections = intersections
+        
+        # 2. Visualization: Update Fog of War (Optional)
+        if self.render_mode:
+            self._update_exploration_grid(intersections)
+            
+        # 3. Observation: Get Scalar Distances
         obs = self._get_observation(intersections)
         
         # Reward & Done
@@ -182,91 +342,24 @@ class SimpleRobotEnv:
         
         return obs, reward, done, {}
 
-    # --- Original Robot Env Logic (Mapping & Simulation) ---
+    # --- Core Logic ---
 
-    def cast_lidar_rays_optimized(self, robot_x, robot_y, orientation):
-        """Optimized LIDAR using Bresenham's line algorithm."""
-        intersections = []
-        angles = orientation + self.lidar_angles
-        
-        for angle_deg in angles:
-            angle_rad = np.radians(angle_deg)
-            end_x = int(robot_x + self.ray_length * np.cos(angle_rad))
-            end_y = int(robot_y + self.ray_length * np.sin(angle_rad))
-            
-            line_points = _bresenham_line(int(robot_x), int(robot_y), end_x, end_y)
-            
-            closest_intersection = None
-            for point in line_points:
-                x, y = point
-                if not (0 <= x < self.w and 0 <= y < self.h):
-                    break
-                    
-                if self.obstacle_map[y, x] == 1:
-                    closest_intersection = (x, y)
-                    break
-            
-            intersections.append(closest_intersection)
-        
-        return intersections
-
-    def _update_map(self):
-        """Update exploration grid with latest LIDAR scan."""
-        intersections = self.cast_lidar_rays_optimized(self.x, self.y, self.angle)
-        angles = self.angle + self.lidar_angles
-        new_cells = 0
-
-        for angle_deg, inter in zip(angles, intersections):
-            angle_rad = np.radians(angle_deg)
-
-            if inter is not None:
-                # Ray hit obstacle
-                ox, oy = int(inter[0]), int(inter[1])
-
-                # Free path up to obstacle
-                line_points = _bresenham_line(int(self.x), int(self.y), ox, oy)
-                for px, py in line_points[:-1]:
-                    if (0 <= px < self.w and 0 <= py < self.h and
-                        self.exploration_grid[px, py] == -1):
-                        self.exploration_grid[px, py] = 0
-                        new_cells += 1
-
-                # Mark obstacle cell
-                if (0 <= ox < self.w and 0 <= oy < self.h and
-                    self.exploration_grid[ox, oy] == -1):
-                    self.exploration_grid[ox, oy] = 1
-                    new_cells += 1
-
-            else:
-                # No obstacle hit -> mark full ray as free
-                end_x = int(self.x + self.ray_length * np.cos(angle_rad))
-                end_y = int(self.y + self.ray_length * np.sin(angle_rad))
-                line_points = _bresenham_line(int(self.x), int(self.y), end_x, end_y)
-
-                for px, py in line_points:
-                    if (0 <= px < self.w and 0 <= py < self.h and
-                        self.exploration_grid[px, py] == -1):
-                        self.exploration_grid[px, py] = 0
-                        new_cells += 1
-
-        return intersections, new_cells
+    def _update_exploration_grid(self, intersections):
+        """
+        Updates the fog-of-war grid. Separated from physics for performance.
+        Only called when render_mode is True.
+        """
+        update_exploration_grid_fast(
+            self.x, self.y, self.angle, 
+            self.lidar_angles, intersections, self.ray_length,
+            self.exploration_grid, self.w, self.h
+        )
 
     def _get_observation(self, intersections):
         """
-        Gets distance readings from x,y intersections
-        
-        :param self: instance of SimpleRobotEnv class
-        :param intersections: (x,y) coordinates of ray intersections or None
-        :return: Numpy array of distances for each ray 
+        Gets distance readings from x,y intersections using static function
         """
-        distances = []
-        for inter in intersections:
-            if inter:
-                dist = math.sqrt((inter[0] - self.x)**2 + (inter[1] - self.y)**2)
-            else:
-                dist = self.ray_length
-            distances.append(dist)
-        return np.array(distances, dtype=np.float32)
+        return get_ray_distances(self.x, self.y, intersections, self.ray_length)
 
     # --- Helpers ---
 
@@ -321,15 +414,25 @@ class SimpleRobotEnv:
         
         # Draw Exploration Grid
         overlay = pygame.Surface((self.w, self.h), pygame.SRCALPHA)
+        # Use simple color filling for visualization (slow but okay for render loop)
+        
+        # We need to transpose for Pygame surface handling
+        # 0=Free (Green), 1=Obstacle (Red), -1=Unexplored (Transparent)
+        grid_t = self.exploration_grid
+        
+        # Create masks
+        free_mask = (grid_t == 0)
+        obs_mask = (grid_t == 1)
+        
+        # Access pixel array directly
         rgb_ref = pygame.surfarray.pixels3d(overlay)
         alpha_ref = pygame.surfarray.pixels_alpha(overlay)
         
-        free_mask = (self.exploration_grid == 0)
-        obs_mask = (self.exploration_grid == 1)
-        
+        # Green for Free
         rgb_ref[free_mask] = [0, 255, 0]
         alpha_ref[free_mask] = 100
         
+        # Red for Obstacles
         rgb_ref[obs_mask] = [255, 0, 0]
         alpha_ref[obs_mask] = 100
         
@@ -349,17 +452,20 @@ class SimpleRobotEnv:
         pygame.draw.line(self.screen, (0, 0, 0), (self.x, self.y), (end_x, end_y), 2)
 
     def _draw_lidar(self):
-        # Re-calculate ray ends for visualization if needed, or use intersections
+        if self.last_intersections is None:
+            return
+
         angles = self.angle + self.lidar_angles
         
+        # Iterate through the numpy array of intersections
         for i, angle_deg in enumerate(angles):
-            # Check if we had a hit
-            intersection = self.last_intersections[i] if i < len(self.last_intersections) else None
+            ix, iy = self.last_intersections[i]
             
-            if intersection:
-                end_pos = intersection
+            # Check if we have a valid hit (-1 check)
+            if ix != -1:
+                end_pos = (ix, iy)
             else:
-                # Calculate max range end point
+                # Calculate max range end point for visualization
                 angle_rad = np.radians(angle_deg)
                 end_x = self.x + self.ray_length * np.cos(angle_rad)
                 end_y = self.y + self.ray_length * np.sin(angle_rad)
