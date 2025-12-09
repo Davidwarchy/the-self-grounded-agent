@@ -4,9 +4,11 @@ x*.*
 robot_path.npy
 outputs/
 output/
+output_fast/
 profile.out
 train/dino/__init__.py
 train/dino/dino.py
 train/dino/run_dino.py
 dino_models/dino_lidar.pth
 action/environments/* 
+action/cluster/

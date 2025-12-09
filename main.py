@@ -97,7 +97,7 @@ async def main():
 
     env = RobotExplorationEnv(
         map_image_path=get_map_path(args.env),
-        robot_radius=2,
+        robot_radius=3,
         render=args.render,
         max_steps=args.max_steps,
         strategy_name=strategy.name,

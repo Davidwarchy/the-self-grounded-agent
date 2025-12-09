@@ -1,46 +1,42 @@
 import os
 import time
-import csv
 import random
 import datetime
 import numpy as np
 import pandas as pd
-from robot_env import SimpleRobotEnv
+from robot_env import DownsampledRobotEnv
 
 # --- Configuration ---
-MAP_PATH = "environments/images/6.png" # Adjust if your map is elsewhere
-TOTAL_STEPS = 1_000_000        # Total frames to record across all episodes
-MAX_EPISODE_STEPS = 1000       # Reset env after this many steps
-MIN_RUN_LENGTH = 1             # Min steps to hold an action
-MAX_RUN_LENGTH = 30            # Max steps to hold an action
+MAP_PATH = "../environments/images/12.png"  # Using environment 12.png as requested
+TOTAL_STEPS = 100_000       # Total frames to record across all episodes
+MAX_EPISODE_STEPS = 10_000     # Reset env after this many steps
 
 def setup_logging():
     """Creates the timestamped output directory and returns the path."""
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d-%H%M%S")
-    base_dir = os.path.join("output", "action", timestamp)
+    base_dir = os.path.join("output", "downsampled", timestamp)
     os.makedirs(base_dir, exist_ok=True)
     return base_dir
 
 def run_collection():
     # 1. Setup
     out_dir = setup_logging()
-    print(f"Starting collection. Output: {out_dir}")
+    print(f"Starting downsampled collection. Output: {out_dir}")
     
     # Check map existence, fallback if needed
     if not os.path.exists(MAP_PATH):
         print(f"Error: Map not found at {MAP_PATH}")
-        print("Please ensure 'environments/images/6.png' exists or update MAP_PATH.")
+        print("Please ensure 'environments/images/12.png' exists or update MAP_PATH.")
         return
 
-    render_sim = False  # Set to True to visualize during collection
-    env = SimpleRobotEnv(MAP_PATH, max_steps=MAX_EPISODE_STEPS, render_mode=render_sim)
+    render_sim = True  # Set to True to visualize during collection
+    env = DownsampledRobotEnv(MAP_PATH, max_steps=MAX_EPISODE_STEPS, render_mode=render_sim)
     
     # 2. Header Definition
-    # step, strategy, action, run_start, run_length, ray_0...ray_99, episode, reward, x, y, orientation
-    lidar_cols = [f"ray_{i}" for i in range(100)]
+    # We have 3 discretized ray values (0, 1, or 2)
+    lidar_cols = [f"ray_{i}" for i in range(3)]  # Only 3 rays after downsampling
     header = [
         "step", "strategy", "action", 
-        "run_start", "run_length", 
         *lidar_cols, 
         "episode", "reward", "x", "y", "orientation"
     ]
@@ -48,14 +44,8 @@ def run_collection():
     buffer = []
     global_step = 0
     file_index = 0
-    buffer_size = 100  # Save to CSV every 1k steps
+    buffer_size = 100  # Save to CSV every 100 steps
     
-    # Strategy State
-    current_action = 0
-    steps_remaining_in_run = 0
-    is_run_start = False
-    run_total_length = 0
-
     # --- Metrics State ---
     episodes_completed = 0
     success_count = 0
@@ -66,14 +56,9 @@ def run_collection():
     
     while global_step < TOTAL_STEPS:
         
-        # --- Strategy: Random Uniform Motion ---
-        if steps_remaining_in_run <= 0:
-            current_action = random.randint(0, 3)
-            run_total_length = random.randint(MIN_RUN_LENGTH, MAX_RUN_LENGTH)
-            steps_remaining_in_run = run_total_length
-            is_run_start = True
-        else:
-            is_run_start = False
+        # --- Strategy: Random Uniform Motion with 5 actions ---
+        # 0=up, 1=down, 2=left, 3=right, 4=nothing
+        current_action = random.randint(0, 4)
         
         # --- Execution ---
         obs, reward, done, _ = env.step(current_action)
@@ -82,18 +67,15 @@ def run_collection():
             env.render()
         
         # --- Data Recording ---
-        log_run_start = 1 if is_run_start else ""
-        log_run_length = run_total_length if is_run_start else ""
-        
         row = [
             global_step,                # step
-            "random_uniform",           # strategy
-            current_action,             # action
-            log_run_start,              # run_start
-            log_run_length,             # run_length
-            *obs,                       # ray_0 ... ray_99
+            "random_uniform_5actions",  # strategy
+            current_action,             # action (0-4)
+            int(obs[0]),                # ray_0 (discretized)
+            int(obs[1]),                # ray_1 (discretized)
+            int(obs[2]),                # ray_2 (discretized)
             env.episode,                # episode
-            reward,                     # reward
+            reward,                     # reward (1.0 if goal reached, else 0)
             round(env.x, 2),            # x
             round(env.y, 2),            # y
             round(env.angle, 2)         # orientation
@@ -103,7 +85,6 @@ def run_collection():
         
         # --- Counters Update ---
         global_step += 1
-        steps_remaining_in_run -= 1
         
         # --- Flushing to Disk ---
         if len(buffer) >= buffer_size:
@@ -118,8 +99,7 @@ def run_collection():
         if done:
             episodes_completed += 1
             
-            # Check for Success
-            # Based on env logic: reward is 1.0 ONLY if goal is reached.
+            # Check for Success (reward is 1.0 ONLY if goal is reached)
             is_success = (reward > 0.0)
             
             if is_success:
@@ -127,19 +107,16 @@ def run_collection():
                 success_lengths.append(env.step_count)
 
             # Calculate Stats
-            success_rate = (success_count / episodes_completed) * 100
+            success_rate = (success_count / episodes_completed) * 100 if episodes_completed > 0 else 0
             avg_success_len = np.mean(success_lengths) if success_lengths else 0.0
 
             # Console Output
-            # status_str = "SUCCESS" if is_success else "TIMEOUT"
-            # print(f"Ep {env.episode} [{status_str}] Steps: {env.step_count}")
-            # print(f" >> Rate: {success_rate:.2f}% ({success_count}/{episodes_completed}) | Avg Success Path: {avg_success_len:.1f}")
-            # print("-" * 40)
-            print(f"Episode {env.episode} finished after {env.step_count} steps. SR: {success_rate:.2f}, SPL: {avg_success_len:.2f}")
-
+            print(f"Episode {env.episode} finished after {env.step_count} steps. "
+                  f"Success: {'Yes' if is_success else 'No'}, "
+                  f"Success Rate: {success_rate:.2f}%, "
+                  f"Avg Success Path Length: {avg_success_len:.1f}")
 
             obs = env.reset()
-            steps_remaining_in_run = 0 
 
     # 4. Final Flush
     if buffer:
@@ -148,7 +125,19 @@ def run_collection():
         df.to_csv(file_path, index=False)
         print(f"Saved final {len(buffer)} steps to {file_path}")
 
-    print("Collection Complete.")
+    # 5. Summary Statistics
+    print("\n" + "="*60)
+    print("COLLECTION COMPLETE")
+    print("="*60)
+    print(f"Total steps collected: {global_step}")
+    print(f"Total episodes: {episodes_completed}")
+    print(f"Success rate: {success_count}/{episodes_completed} = {success_rate:.2f}%")
+    if success_lengths:
+        print(f"Average success path length: {np.mean(success_lengths):.1f} steps")
+        print(f"Min success path length: {np.min(success_lengths):.0f} steps")
+        print(f"Max success path length: {np.max(success_lengths):.0f} steps")
+    print(f"Data saved to: {out_dir}")
+    print("="*60)
 
 if __name__ == "__main__":
     run_collection()
