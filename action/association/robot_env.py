@@ -214,7 +214,7 @@ def update_exploration_grid_fast(x, y, angle, lidar_angles, intersections, ray_l
     return new_cells
 
 class DownsampledRobotEnv:
-    def __init__(self, map_path, max_steps=1000, robot_radius=3, goal_radius=5, render_mode=False):
+    def __init__(self, map_path, max_steps=1000, robot_radius=3, goal_radius=2, render_mode=False, scale_factor=20):
         # 1. Load Map
         if not os.path.exists(map_path):
             raise FileNotFoundError(f"Map not found at: {map_path}")
@@ -233,6 +233,7 @@ class DownsampledRobotEnv:
         self.robot_radius = robot_radius
         self.goal_radius = goal_radius
         self.render_mode = render_mode
+        self.scale_factor = scale_factor  # NEW: Magnification factor
         
         self.step_count = 0
         self.episode = 0
@@ -252,7 +253,7 @@ class DownsampledRobotEnv:
         self.SPEED = 5.0
         self.TURN_SPEED = 15.0 # Degrees
         self.num_rays = 100
-        self.ray_length = 200
+        self.ray_length = 10
         
         # Downsampling parameters
         self.num_outputs = 3  # Output 3 rays after downsampling
@@ -333,7 +334,7 @@ class DownsampledRobotEnv:
         
         # Reward & Done
         dist_to_goal = math.hypot(self.x - self.goal_x, self.y - self.goal_y)
-        touch_threshold = self.robot_radius + self.goal_radius + 4
+        touch_threshold = self.robot_radius + self.goal_radius
         
         reward = 0.0
         done = False
@@ -403,8 +404,9 @@ class DownsampledRobotEnv:
 
         if self.screen is None:
             pygame.init()
-            self.screen = pygame.display.set_mode((self.w, self.h))
-            pygame.display.set_caption("Robot Exploration - Downsampled")
+            # NEW: Create window with scaled dimensions
+            self.screen = pygame.display.set_mode((self.w * self.scale_factor, self.h * self.scale_factor))
+            pygame.display.set_caption(f"Robot Exploration - Downsampled (Scale: {self.scale_factor}x)")
             self.clock = pygame.time.Clock()
         
         self._draw_map()
@@ -423,7 +425,10 @@ class DownsampledRobotEnv:
         # Base map
         vis_map = np.stack([self.map_img] * 3, axis=-1)
         base_surf = pygame.surfarray.make_surface(vis_map.swapaxes(0, 1))
-        self.screen.blit(base_surf, (0, 0))
+        
+        # NEW: Scale the surface
+        scaled_surf = pygame.transform.scale(base_surf, (self.w * self.scale_factor, self.h * self.scale_factor))
+        self.screen.blit(scaled_surf, (0, 0))
         
         # Draw Exploration Grid
         overlay = pygame.Surface((self.w, self.h), pygame.SRCALPHA)
@@ -448,22 +453,37 @@ class DownsampledRobotEnv:
         del rgb_ref
         del alpha_ref
         
-        self.screen.blit(overlay, (0, 0))
+        # NEW: Scale the overlay
+        scaled_overlay = pygame.transform.scale(overlay, (self.w * self.scale_factor, self.h * self.scale_factor))
+        self.screen.blit(scaled_overlay, (0, 0))
 
     def _draw_entities(self):
+        # NEW: Scale all coordinates and sizes
+        s = self.scale_factor
+        
         # Goal (Blue Blob) at 15, 5
-        pygame.draw.circle(self.screen, (0, 0, 255), (int(self.goal_x), int(self.goal_y)), self.goal_radius)
+        pygame.draw.circle(self.screen, (0, 0, 255), 
+                          (int(self.goal_x * s), int(self.goal_y * s)), 
+                          self.goal_radius * s)
+        
         # Robot (Yellow Circle)
-        pygame.draw.circle(self.screen, (255, 255, 0), (int(self.x), int(self.y)), self.robot_radius)
+        pygame.draw.circle(self.screen, (255, 255, 0), 
+                          (int(self.x * s), int(self.y * s)), 
+                          self.robot_radius * s)
+        
         # Heading Line
-        end_x = self.x + 15 * np.cos(np.radians(self.angle))
-        end_y = self.y + 15 * np.sin(np.radians(self.angle))
-        pygame.draw.line(self.screen, (0, 0, 0), (self.x, self.y), (end_x, end_y), 2)
+        end_x = (self.x + 15 * np.cos(np.radians(self.angle))) * s
+        end_y = (self.y + 15 * np.sin(np.radians(self.angle))) * s
+        pygame.draw.line(self.screen, (0, 0, 0), 
+                        (self.x * s, self.y * s), 
+                        (end_x, end_y), 
+                        max(2, int(2 * s / 10)))
 
     def _draw_lidar(self):
         if self.last_intersections is None:
             return
 
+        s = self.scale_factor
         angles = self.angle + self.lidar_angles
         
         # Iterate through the numpy array of intersections
@@ -472,13 +492,16 @@ class DownsampledRobotEnv:
             
             # Check if we have a valid hit (-1 check)
             if ix != -1:
-                end_pos = (ix, iy)
+                end_pos = (ix * s, iy * s)
             else:
                 # Calculate max range end point for visualization
                 angle_rad = np.radians(angle_deg)
-                end_x = self.x + self.ray_length * np.cos(angle_rad)
-                end_y = self.y + self.ray_length * np.sin(angle_rad)
+                end_x = (self.x + self.ray_length * np.cos(angle_rad)) * s
+                end_y = (self.y + self.ray_length * np.sin(angle_rad)) * s
                 end_pos = (end_x, end_y)
             
             # Draw Ray
-            pygame.draw.line(self.screen, (0, 255, 255), (self.x, self.y), end_pos, 1)
+            pygame.draw.line(self.screen, (0, 255, 255), 
+                           (self.x * s, self.y * s), 
+                           end_pos, 
+                           max(1, int(s / 20)))
