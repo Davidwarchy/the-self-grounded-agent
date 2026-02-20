@@ -29,7 +29,7 @@ def run_collection():
         print("Please ensure 'environments/images/12.png' exists or update MAP_PATH.")
         return
 
-    render_sim = True  # Set to True to visualize during collection
+    render_sim = False  # Set to True to visualize during collection
     env = DownsampledRobotEnv(MAP_PATH, max_steps=MAX_EPISODE_STEPS, render_mode=render_sim)
     
     # 2. Header Definition

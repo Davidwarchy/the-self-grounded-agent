@@ -8,6 +8,8 @@ A lightweight Gym-style setup for 2D robot navigation and exploration using lida
 
 Figure interpretation. Black - obstacles. White - free space. Green - explored regions. Yellow - lidar rays. Maroon - detected obstacles. 
 
+Overall, the project explores how autonomous agents can bootstrap internal representations from sensorimotor experience, aiming toward the goal of developing self-sustaining computational systems.
+
 ## Environments
 
 Maps are stored as bitmap images in `environments/`.
